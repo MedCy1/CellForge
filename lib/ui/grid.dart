@@ -19,7 +19,9 @@ class _LifeGridState extends State<LifeGrid> {
   @override
   void initState() {
     super.initState();
-    _grid = [];
+    // Initialiser avec la grille actuelle du moteur
+    _grid = widget.engine.getCurrentGrid();
+    
     widget.engine.gridStream.listen((grid) {
       if (mounted) {
         setState(() {

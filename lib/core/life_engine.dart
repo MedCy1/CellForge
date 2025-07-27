@@ -26,6 +26,8 @@ class LifeEngine {
     _width = width;
     _height = height;
     _initializeGrid();
+    // Envoyer l'état initial après un court délai pour s'assurer que les listeners sont prêts
+    Future.microtask(() => _notifyGridChanged());
   }
   
   void _initializeGrid() {
@@ -178,6 +180,10 @@ class LifeEngine {
   }
   
   List<List<bool>> exportPattern() {
+    return _grid.map((row) => List<bool>.from(row)).toList();
+  }
+  
+  List<List<bool>> getCurrentGrid() {
     return _grid.map((row) => List<bool>.from(row)).toList();
   }
   
