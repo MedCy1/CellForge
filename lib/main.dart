@@ -372,7 +372,12 @@ class _GameOfLifeScreenState extends State<GameOfLifeScreen> {
   }
 
   void _loadPattern(PatternModel pattern) {
-    _engine.loadPattern(pattern.data);
+    // Convertir vers une grille avec les dimensions du moteur
+    final grid = pattern.toGrid(
+      width: _engine.width,
+      height: _engine.height,
+    );
+    _engine.loadPattern(grid);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Pattern "${pattern.name}" chargé'),

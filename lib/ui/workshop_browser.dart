@@ -236,7 +236,12 @@ class _WorkshopBrowserState extends State<WorkshopBrowser> {
 
   void _loadPattern(PatternModel pattern) {
     try {
-      widget.engine.loadPattern(pattern.data);
+      // Convertir vers la grille avec les dimensions du moteur
+      final grid = pattern.toGrid(
+        width: widget.engine.width,
+        height: widget.engine.height,
+      );
+      widget.engine.loadPattern(grid);
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -266,8 +271,8 @@ class _WorkshopBrowserState extends State<WorkshopBrowser> {
             if (pattern.author != null) Text('Auteur: ${pattern.author}'),
             Text('Créé le: ${_formatDate(pattern.createdAt)}'),
             const SizedBox(height: 16),
-            Text('Taille: ${pattern.data[0].length}×${pattern.data.length}'),
-            Text('Cellules vivantes: ${_countAliveCells(pattern.data)}'),
+            Text('Taille: ${pattern.bounds.width}×${pattern.bounds.height}'),
+            Text('Cellules vivantes: ${pattern.aliveCellCount}'),
           ],
         ),
         actions: [
@@ -493,13 +498,4 @@ class _WorkshopBrowserState extends State<WorkshopBrowser> {
     return '${date.day}/${date.month}/${date.year}';
   }
 
-  int _countAliveCells(List<List<bool>> data) {
-    int count = 0;
-    for (var row in data) {
-      for (var cell in row) {
-        if (cell) count++;
-      }
-    }
-    return count;
-  }
 }

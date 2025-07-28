@@ -1,11 +1,12 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../models/optimized_pattern.dart';
 
 class PatternModel {
   final String id;
   final String name;
   final String? author;
   final String? description;
-  final List<List<bool>> data;
+  final OptimizedPattern pattern;
   final DateTime createdAt;
 
   PatternModel({
@@ -13,23 +14,39 @@ class PatternModel {
     required this.name,
     this.author,
     this.description,
-    required this.data,
+    required this.pattern,
     required this.createdAt,
   });
 
+  /// Constructeur à partir d'une grille
+  PatternModel.fromGrid({
+    required this.id,
+    required this.name,
+    this.author,
+    this.description,
+    required List<List<bool>> data,
+    required this.createdAt,
+  }) : pattern = OptimizedPattern.fromGrid(data);
+
+  /// Convertir vers une grille pour l'affichage
+  List<List<bool>> toGrid({int? width, int? height}) => pattern.toGrid(targetWidth: width, targetHeight: height);
+
+  /// Obtenir les dimensions du pattern
+  ({int width, int height}) get bounds => pattern.bounds;
+
+  /// Nombre de cellules vivantes
+  int get aliveCellCount => pattern.aliveCellCount;
+
   factory PatternModel.fromJson(Map<String, dynamic> json) {
-    final data = json['data'] as List;
-    final grid = data.map((row) {
-      final rowList = row as List;
-      return rowList.map((cell) => cell as bool).toList();
-    }).toList();
+    final data = json['data'] as Map<String, dynamic>;
+    final pattern = OptimizedPattern.fromJson(data);
 
     return PatternModel(
       id: json['id'] as String,
       name: json['name'] as String,
       author: json['author'] as String?,
       description: json['description'] as String?,
-      data: grid,
+      pattern: pattern,
       createdAt: DateTime.parse(json['created_at'] as String),
     );
   }
@@ -39,7 +56,7 @@ class PatternModel {
       'name': name,
       'author': author,
       'description': description,
-      'data': data,
+      'data': pattern.toJson(),
     };
     
     if (userId != null) {
@@ -101,7 +118,7 @@ class PatternService {
     }
 
     try {
-      final pattern = PatternModel(
+      final pattern = PatternModel.fromGrid(
         id: '',
         name: name,
         author: author,
@@ -166,7 +183,7 @@ class PatternService {
 
   static List<PatternModel> getBuiltInPatterns() {
     return [
-      PatternModel(
+      PatternModel.fromGrid(
         id: 'glider',
         name: 'Glider',
         author: 'Conway',
@@ -177,7 +194,7 @@ class PatternService {
         ],
         createdAt: DateTime.now(),
       ),
-      PatternModel(
+      PatternModel.fromGrid(
         id: 'blinker',
         name: 'Blinker',
         author: 'Conway',
@@ -186,7 +203,7 @@ class PatternService {
         ],
         createdAt: DateTime.now(),
       ),
-      PatternModel(
+      PatternModel.fromGrid(
         id: 'beacon',
         name: 'Beacon',
         author: 'Conway',
@@ -198,7 +215,7 @@ class PatternService {
         ],
         createdAt: DateTime.now(),
       ),
-      PatternModel(
+      PatternModel.fromGrid(
         id: 'toad',
         name: 'Toad',
         author: 'Conway',
