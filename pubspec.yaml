@@ -40,6 +40,9 @@ dependencies:
   
   # FFI pour l'intégration native
   ffi: ^2.1.4
+  
+  # Internationalisation et formatage de nombres
+  intl: ^0.19.0
 
 dev_dependencies:
   flutter_test:

@@ -16,20 +16,55 @@ class Avx2EngineFFI {
     if (_initialized) return;
     
     try {
-      // Try to load the shared library
-      // You'll need to compile the C code as: gcc -shared -fPIC -o libavx2_engine.so avx2_engine.c
-      if (Platform.isLinux) {
-        _dylib = ffi.DynamicLibrary.open('./native/libavx2_engine.so');
+      // Try multiple paths to find the library
+      List<String> libraryPaths = [];
+      
+      if (Platform.isLinux || Platform.isAndroid) {
+        libraryPaths = [
+          './native/libavx2_engine.so',
+          'native/libavx2_engine.so',
+          '../native/libavx2_engine.so',
+          './libavx2_engine.so',
+        ];
       } else if (Platform.isWindows) {
-        _dylib = ffi.DynamicLibrary.open('./native/avx2_engine.dll');
-      } else if (Platform.isMacOS) {
-        _dylib = ffi.DynamicLibrary.open('./native/libavx2_engine.dylib');
+        libraryPaths = [
+          './native/avx2_engine.dll',
+          'native/avx2_engine.dll',
+          '../native/avx2_engine.dll',
+          './avx2_engine.dll',
+        ];
+      } else if (Platform.isMacOS || Platform.isIOS) {
+        libraryPaths = [
+          './native/libavx2_engine.dylib',
+          'native/libavx2_engine.dylib',
+          '../native/libavx2_engine.dylib',
+          './libavx2_engine.dylib',
+        ];
       } else {
-        throw UnsupportedError('Platform not supported');
+        throw UnsupportedError('Platform ${Platform.operatingSystem} not supported');
       }
       
-      _initialized = true;
+      // Try each path until one works
+      Exception? lastError;
+      for (String path in libraryPaths) {
+        try {
+          _dylib = ffi.DynamicLibrary.open(path);
+          _initialized = true;
+          // AVX2 library loaded successfully from: $path
+          return;
+        } catch (e) {
+          lastError = Exception('Failed to load from $path: $e');
+          continue;
+        }
+      }
+      
+      // If we get here, none of the paths worked
+      throw lastError ?? Exception('No library paths worked');
+      
     } catch (e) {
+      // Failed to load AVX2 native library: $e
+      // Current working directory: ${Directory.current.path}
+      // Make sure to build the library with: cd native && make
       throw Exception('Failed to load native library: $e');
     }
   }

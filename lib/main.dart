@@ -64,7 +64,22 @@ class _GameOfLifeScreenState extends State<GameOfLifeScreen> {
   @override
   void initState() {
     super.initState();
-    _engine = LifeEngineController(engine: BruteforceEngine(width: 80, height: 50));
+    _engine = LifeEngineController(
+      engine: BruteforceEngine(width: 80, height: 50),
+      // Auto-switching is enabled by default
+      onEngineSwitch: (message) {
+        // Show engine switches as snackbars for user feedback
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(message),
+              duration: const Duration(seconds: 2),
+              backgroundColor: Colors.blue,
+            ),
+          );
+        }
+      },
+    );
   }
 
   @override

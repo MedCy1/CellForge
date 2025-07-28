@@ -37,7 +37,9 @@ class Avx2Engine implements ILifeEngine {
     // Initialize FFI library
     try {
       Avx2EngineFFI.initialize();
+      // AVX2 engine initialized successfully for ${width}x$height grid
     } catch (e) {
+      // AVX2 engine initialization failed: $e
       throw Exception('Failed to initialize AVX2 engine: $e');
     }
     
@@ -58,11 +60,15 @@ class Avx2Engine implements ILifeEngine {
   }
 
   void _notifyGridChanged() {
-    _gridController.add(_flatToGrid(_grid));
+    if (!_gridController.isClosed) {
+      _gridController.add(_flatToGrid(_grid));
+    }
   }
 
   void _notifyGenerationChanged() {
-    _generationController.add(_generation);
+    if (!_generationController.isClosed) {
+      _generationController.add(_generation);
+    }
   }
 
   // Convert flat Uint8List to 2D List<List<bool>>

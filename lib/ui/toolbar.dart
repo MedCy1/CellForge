@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/engine/life_engine_controller.dart';
+import '../utils/memory_estimator.dart';
+import 'grid_config_dialog.dart';
 
 class LifeToolbar extends StatefulWidget {
   final LifeEngineController engine;
@@ -68,6 +70,11 @@ class _LifeToolbarState extends State<LifeToolbar> {
                   icon: const Icon(Icons.shuffle),
                   tooltip: 'Aléatoire',
                 ),
+                IconButton(
+                  onPressed: () => _showGridConfigDialog(),
+                  icon: const Icon(Icons.aspect_ratio),
+                  tooltip: 'Configure Grid Size',
+                ),
               ],
             ),
             const SizedBox(height: 16),
@@ -96,6 +103,7 @@ class _LifeToolbarState extends State<LifeToolbar> {
               ],
             ),
             const SizedBox(height: 8),
+            // Generation and grid info
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -115,9 +123,124 @@ class _LifeToolbarState extends State<LifeToolbar> {
                 ),
               ],
             ),
+            const SizedBox(height: 8),
+            
+            // Engine status and memory info
+            _buildEngineStatus(),
           ],
         ),
       ),
+    );
+  }
+  
+  Widget _buildEngineStatus() {
+    final memoryUsage = MemoryEstimator.calculateMemoryUsage(
+      widget.engine.width, 
+      widget.engine.height,
+    );
+    
+    Color statusColor;
+    switch (memoryUsage.warningLevel) {
+      case WarningLevel.safe:
+        statusColor = Colors.green;
+        break;
+      case WarningLevel.caution:
+        statusColor = Colors.orange;
+        break;
+      case WarningLevel.warning:
+        statusColor = Colors.red.shade300;
+        break;
+      case WarningLevel.danger:
+        statusColor = Colors.red.shade700;
+        break;
+    }
+    
+    return Column(
+      children: [
+        // Engine type
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  widget.engine.currentEngineType == EngineType.avx2
+                      ? Icons.speed
+                      : Icons.calculate,
+                  size: 16,
+                  color: widget.engine.currentEngineType == EngineType.avx2
+                      ? Colors.blue
+                      : (widget.engine.isAvx2EngineAvailable ? Colors.grey : Colors.orange),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  widget.engine.currentEngineType == EngineType.avx2
+                      ? 'High-Perf'
+                      : (widget.engine.isAvx2EngineAvailable ? 'Standard' : 'Standard*'),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: widget.engine.currentEngineType == EngineType.avx2
+                        ? Colors.blue
+                        : (widget.engine.isAvx2EngineAvailable ? Colors.grey : Colors.orange),
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+            // Memory usage
+            Row(
+              children: [
+                Icon(
+                  Icons.memory,
+                  size: 16,
+                  color: statusColor,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  memoryUsage.formattedTotal,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: statusColor,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        
+        // Show help text when AVX2 is not available
+        if (!widget.engine.isAvx2EngineAvailable) ...[
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Icon(
+                Icons.info_outline,
+                size: 12,
+                color: Colors.orange,
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  '* Compile native library for high-performance mode',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Colors.orange,
+                    fontSize: 10,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ],
+        
+      ],
+    );
+  }
+  
+  void _showGridConfigDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => GridConfigDialog(engine: widget.engine),
     );
   }
 }

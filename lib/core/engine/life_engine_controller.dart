@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'i_life_engine.dart';
 import 'bruteforce_engine.dart';
 import 'avx2_engine.dart';
@@ -9,20 +10,34 @@ enum EngineType {
 
 class LifeEngineController {
   ILifeEngine _engine;
-  bool _autoSwitchEnabled = false;
+  bool _autoSwitchEnabled = true; // Enable auto-switching by default
   int _autoSwitchThreshold = 2500; // Switch to AVX2 for grids larger than 50x50
   void Function(String message)? _onEngineSwitch;
   
+  // Controller's own streams that never change
+  final StreamController<List<List<bool>>> _gridController = StreamController.broadcast();
+  final StreamController<int> _generationController = StreamController.broadcast();
+  
+  // Stream subscriptions to current engine
+  StreamSubscription<List<List<bool>>>? _gridSubscription;
+  StreamSubscription<int>? _generationSubscription;
+  
   LifeEngineController({
     ILifeEngine? engine, 
-    bool autoSwitch = false,
+    bool autoSwitch = true, // Default to true
     void Function(String message)? onEngineSwitch,
   }) : _engine = engine ?? BruteforceEngine(),
        _autoSwitchEnabled = autoSwitch,
-       _onEngineSwitch = onEngineSwitch;
+       _onEngineSwitch = onEngineSwitch {
+    _connectToEngine();
+    // Perform initial auto-switch check based on grid size
+    if (_autoSwitchEnabled) {
+      Future.microtask(() => _checkAndAutoSwitch());
+    }
+  }
   
-  Stream<List<List<bool>>> get gridStream => _engine.gridStream;
-  Stream<int> get generationStream => _engine.generationStream;
+  Stream<List<List<bool>>> get gridStream => _gridController.stream;
+  Stream<int> get generationStream => _generationController.stream;
   
   bool get isRunning => _engine.isRunning;
   int get width => _engine.width;
@@ -50,14 +65,44 @@ class LifeEngineController {
       _checkAndAutoSwitch();
     }
   }
-  void dispose() => _engine.dispose();
+  void dispose() {
+    _disconnectFromEngine();
+    _engine.dispose();
+    _gridController.close();
+    _generationController.close();
+  }
+  
+  void _connectToEngine() {
+    _disconnectFromEngine();
+    
+    _gridSubscription = _engine.gridStream.listen((grid) {
+      if (!_gridController.isClosed) {
+        _gridController.add(grid);
+      }
+    });
+    
+    _generationSubscription = _engine.generationStream.listen((generation) {
+      if (!_generationController.isClosed) {
+        _generationController.add(generation);
+      }
+    });
+  }
+  
+  void _disconnectFromEngine() {
+    _gridSubscription?.cancel();
+    _generationSubscription?.cancel();
+    _gridSubscription = null;
+    _generationSubscription = null;
+  }
   
   void switchEngine(ILifeEngine newEngine) {
     final oldGrid = _engine.getCurrentGrid();
     final wasRunning = _engine.isRunning;
     
+    _disconnectFromEngine();
     _engine.dispose();
     _engine = newEngine;
+    _connectToEngine();
     
     _engine.loadPattern(oldGrid);
     
@@ -125,24 +170,32 @@ class LifeEngineController {
     final totalCells = width * height;
     final currentType = currentEngineType;
     
-    try {
-      if (totalCells > _autoSwitchThreshold && currentType == EngineType.bruteforce) {
-        // Switch to AVX2 for large grids
-        final message = 'Auto-switching to AVX2 engine (grid size: ${width}x$height = $totalCells cells)';
-        _onEngineSwitch?.call(message);
+    if (totalCells > _autoSwitchThreshold && currentType == EngineType.bruteforce) {
+      // Switch to AVX2 for large grids
+      try {
         final avx2Engine = Avx2Engine(width: width, height: height);
         switchEngine(avx2Engine);
-      } else if (totalCells <= _autoSwitchThreshold && currentType == EngineType.avx2) {
-        // Switch back to bruteforce for small grids
-        final message = 'Auto-switching to Brute Force engine (grid size: ${width}x$height = $totalCells cells)';
+        final message = 'Switched to high-performance engine for $width×$height grid';
         _onEngineSwitch?.call(message);
+      } catch (e) {
+        // AVX2 engine creation failed, inform user and stay with current engine
+        final message = 'High-performance engine not available, using standard engine';
+        _onEngineSwitch?.call(message);
+      }
+    } else if (totalCells <= _autoSwitchThreshold && currentType == EngineType.avx2) {
+      // Switch back to bruteforce for small grids
+      try {
         final bruteforceEngine = BruteforceEngine(width: width, height: height);
         switchEngine(bruteforceEngine);
+        final message = 'Switched to standard engine for $width×$height grid';
+        _onEngineSwitch?.call(message);
+      } catch (e) {
+        // This should rarely fail, but handle gracefully
+        final message = 'Engine switch failed, keeping current engine';
+        _onEngineSwitch?.call(message);
       }
-    } catch (e) {
-      final message = 'Auto-switch failed: $e. Keeping current engine.';
-      _onEngineSwitch?.call(message);
     }
+    // If we're already using the correct engine for the grid size, do nothing (no notification)
   }
   
   
@@ -162,25 +215,30 @@ class LifeEngineController {
       }
       
       switchEngine(newEngine);
-      final message = 'Manually switched to ${newEngine.runtimeType}';
+      final engineName = engineType == EngineType.avx2 ? 'high-performance' : 'standard';
+      final message = 'Switched to $engineName engine';
       _onEngineSwitch?.call(message);
     } catch (e) {
-      final message = 'Failed to switch to $engineType: $e';
+      final engineName = engineType == EngineType.avx2 ? 'high-performance' : 'standard';
+      final message = '$engineName engine not available';
       _onEngineSwitch?.call(message);
     }
   }
   
-  // Get switching recommendations
-  String getEngineRecommendation() {
-    final totalCells = width * height;
-    final currentType = currentEngineType;
+  // Check if AVX2 engine is available
+  static bool? _avx2Available;
+  bool get isAvx2EngineAvailable {
+    if (_avx2Available != null) return _avx2Available!;
     
-    if (totalCells > _autoSwitchThreshold && currentType == EngineType.bruteforce) {
-      return 'Recommendation: Switch to AVX2 engine for better performance with large grids (${width}x$height)';
-    } else if (totalCells <= _autoSwitchThreshold && currentType == EngineType.avx2) {
-      return 'Recommendation: Brute Force engine is sufficient for smaller grids (${width}x$height)';
-    } else {
-      return 'Current engine is optimal for grid size (${width}x$height)';
+    try {
+      final testEngine = Avx2Engine(width: 10, height: 10);
+      testEngine.dispose();
+      _avx2Available = true;
+      return true;
+    } catch (e) {
+      _avx2Available = false;
+      return false;
     }
   }
+  
 }

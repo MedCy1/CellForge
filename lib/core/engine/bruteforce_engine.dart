@@ -48,11 +48,15 @@ class BruteforceEngine implements ILifeEngine {
   }
   
   void _notifyGridChanged() {
-    _gridController.add(_grid.map((row) => List<bool>.from(row)).toList());
+    if (!_gridController.isClosed) {
+      _gridController.add(_grid.map((row) => List<bool>.from(row)).toList());
+    }
   }
   
   void _notifyGenerationChanged() {
-    _generationController.add(_generation);
+    if (!_generationController.isClosed) {
+      _generationController.add(_generation);
+    }
   }
   
   @override
