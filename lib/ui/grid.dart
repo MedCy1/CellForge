@@ -117,7 +117,7 @@ class GridPainter extends CustomPainter {
       ..color = colorScheme.primary
       ..style = PaintingStyle.fill;
 
-    final deadPaint = Paint()
+    final backgroundPaint = Paint()
       ..color = colorScheme.surface
       ..style = PaintingStyle.fill;
 
@@ -126,18 +126,44 @@ class GridPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 0.5;
 
-    for (int y = 0; y < height; y++) {
-      for (int x = 0; x < width; x++) {
-        final rect = Rect.fromLTWH(
-          x * cellWidth,
-          y * cellHeight,
-          cellWidth,
-          cellHeight,
-        );
+    // Draw background once
+    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), backgroundPaint);
 
-        final isAlive = y < grid.length && x < grid[y].length ? grid[y][x] : false;
-        canvas.drawRect(rect, isAlive ? alivePaint : deadPaint);
-        canvas.drawRect(rect, gridPaint);
+    // Only draw alive cells (much fewer rectangles)
+    for (int y = 0; y < height && y < grid.length; y++) {
+      for (int x = 0; x < width && x < grid[y].length; x++) {
+        if (grid[y][x]) {
+          final rect = Rect.fromLTWH(
+            x * cellWidth,
+            y * cellHeight,
+            cellWidth,
+            cellHeight,
+          );
+          canvas.drawRect(rect, alivePaint);
+        }
+      }
+    }
+
+    // Draw grid lines only if cells are reasonably large (performance optimization)
+    if (cellWidth > 2 && cellHeight > 2) {
+      // Draw vertical lines
+      for (int x = 0; x <= width; x++) {
+        final xPos = x * cellWidth;
+        canvas.drawLine(
+          Offset(xPos, 0),
+          Offset(xPos, size.height),
+          gridPaint,
+        );
+      }
+
+      // Draw horizontal lines
+      for (int y = 0; y <= height; y++) {
+        final yPos = y * cellHeight;
+        canvas.drawLine(
+          Offset(0, yPos),
+          Offset(size.width, yPos),
+          gridPaint,
+        );
       }
     }
   }
