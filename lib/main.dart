@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'core/life_engine.dart';
+import 'core/engine/life_engine_controller.dart';
+import 'core/engine/bruteforce_engine.dart';
 import 'ui/grid.dart';
 import 'ui/toolbar.dart';
 import 'ui/workshop_browser.dart';
@@ -57,13 +58,13 @@ class GameOfLifeScreen extends StatefulWidget {
 }
 
 class _GameOfLifeScreenState extends State<GameOfLifeScreen> {
-  late LifeEngine _engine;
+  late LifeEngineController _engine;
   bool _showBuiltInPatterns = false;
 
   @override
   void initState() {
     super.initState();
-    _engine = LifeEngine(width: 80, height: 50);
+    _engine = LifeEngineController(engine: BruteforceEngine(width: 80, height: 50));
   }
 
   @override

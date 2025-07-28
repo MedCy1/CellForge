@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import '../core/life_engine.dart';
+import '../core/engine/life_engine_controller.dart';
 
 class LifeGrid extends StatefulWidget {
-  final LifeEngine engine;
+  final LifeEngineController engine;
   
   const LifeGrid({
     super.key,

@@ -1,6 +1,7 @@
 import 'dart:async';
+import 'i_life_engine.dart';
 
-class LifeEngine {
+class BruteforceEngine implements ILifeEngine {
   late List<List<bool>> _grid;
   late int _width;
   late int _height;
@@ -13,20 +14,26 @@ class LifeEngine {
   
   int _generation = 0;
   
+  @override
   Stream<List<List<bool>>> get gridStream => _gridController.stream;
+  @override
   Stream<int> get generationStream => _generationController.stream;
   
+  @override
   bool get isRunning => _isRunning;
+  @override
   int get width => _width;
+  @override
   int get height => _height;
+  @override
   int get generation => _generation;
+  @override
   Duration get generationInterval => _generationInterval;
   
-  LifeEngine({int width = 50, int height = 30}) {
+  BruteforceEngine({int width = 50, int height = 30}) {
     _width = width;
     _height = height;
     _initializeGrid();
-    // Envoyer l'état initial après un court délai pour s'assurer que les listeners sont prêts
     Future.microtask(() => _notifyGridChanged());
   }
   
@@ -48,6 +55,7 @@ class LifeEngine {
     _generationController.add(_generation);
   }
   
+  @override
   bool getCellState(int x, int y) {
     if (x < 0 || x >= _width || y < 0 || y >= _height) {
       return false;
@@ -55,6 +63,7 @@ class LifeEngine {
     return _grid[y][x];
   }
   
+  @override
   void setCellState(int x, int y, bool isAlive) {
     if (x >= 0 && x < _width && y >= 0 && y < _height) {
       _grid[y][x] = isAlive;
@@ -62,14 +71,17 @@ class LifeEngine {
     }
   }
   
+  @override
   void toggleCell(int x, int y) {
     setCellState(x, y, !getCellState(x, y));
   }
   
+  @override
   void clearGrid() {
     _initializeGrid();
   }
   
+  @override
   void randomizeGrid({double probability = 0.3}) {
     for (int y = 0; y < _height; y++) {
       for (int x = 0; x < _width; x++) {
@@ -79,6 +91,7 @@ class LifeEngine {
     _notifyGridChanged();
   }
   
+  @override
   void setGenerationInterval(Duration interval) {
     _generationInterval = interval;
     if (_isRunning) {
@@ -87,6 +100,7 @@ class LifeEngine {
     }
   }
   
+  @override
   void start() {
     if (_isRunning) return;
     
@@ -96,12 +110,14 @@ class LifeEngine {
     });
   }
   
+  @override
   void stop() {
     _isRunning = false;
     _timer?.cancel();
     _timer = null;
   }
   
+  @override
   void toggle() {
     if (_isRunning) {
       stop();
@@ -110,6 +126,7 @@ class LifeEngine {
     }
   }
   
+  @override
   void nextGeneration() {
     final newGrid = List.generate(
       _height, 
@@ -154,6 +171,7 @@ class LifeEngine {
     return count;
   }
   
+  @override
   void loadPattern(List<List<bool>> pattern, {int? startX, int? startY}) {
     if (pattern.isEmpty) return;
     
@@ -179,14 +197,17 @@ class LifeEngine {
     _notifyGridChanged();
   }
   
+  @override
   List<List<bool>> exportPattern() {
     return _grid.map((row) => List<bool>.from(row)).toList();
   }
   
+  @override
   List<List<bool>> getCurrentGrid() {
     return _grid.map((row) => List<bool>.from(row)).toList();
   }
   
+  @override
   void resizeGrid(int newWidth, int newHeight) {
     final oldGrid = _grid;
     final oldWidth = _width;
@@ -211,6 +232,7 @@ class LifeEngine {
     _notifyGridChanged();
   }
   
+  @override
   void dispose() {
     stop();
     _gridController.close();

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import '../services/pattern_service.dart';
-import '../core/life_engine.dart';
+import '../core/engine/life_engine_controller.dart';
 
 class WorkshopBrowser extends StatefulWidget {
-  final LifeEngine engine;
+  final LifeEngineController engine;
   
   const WorkshopBrowser({
     super.key,
