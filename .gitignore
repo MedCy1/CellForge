@@ -3,6 +3,9 @@
 *.lock
 *.log
 *.pyc
+
+# Environment variables
+.env
 *.swp
 .buildlog/
 .history
