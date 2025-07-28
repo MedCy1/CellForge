@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../services/pattern_service.dart';
+import '../services/auth_service.dart';
 import '../core/engine/life_engine_controller.dart';
+import 'auth/auth_screen.dart';
 
 class WorkshopBrowser extends StatefulWidget {
   final LifeEngineController engine;
@@ -16,6 +18,7 @@ class WorkshopBrowser extends StatefulWidget {
 
 class _WorkshopBrowserState extends State<WorkshopBrowser> {
   final PatternService _patternService = PatternService();
+  final AuthService _authService = AuthService();
   List<PatternModel> _patterns = [];
   bool _isLoading = false;
   String? _error;
@@ -56,6 +59,60 @@ class _WorkshopBrowserState extends State<WorkshopBrowser> {
       appBar: AppBar(
         title: const Text('Workshop - Patterns partagés'),
         actions: [
+          if (_authService.isAuthenticated) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.person,
+                        size: 16,
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        _authService.userName ?? 'Utilisateur',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onPrimaryContainer,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            PopupMenuButton(
+              icon: const Icon(Icons.more_vert),
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  onTap: _signOut,
+                  child: const Row(
+                    children: [
+                      Icon(Icons.logout),
+                      SizedBox(width: 8),
+                      Text('Se déconnecter'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ] else ...[
+            TextButton.icon(
+              onPressed: _showAuthScreen,
+              icon: const Icon(Icons.login),
+              label: const Text('Connexion'),
+            ),
+          ],
           IconButton(
             onPressed: _loadPatterns,
             icon: const Icon(Icons.refresh),
@@ -64,10 +121,11 @@ class _WorkshopBrowserState extends State<WorkshopBrowser> {
         ],
       ),
       body: _buildBody(),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showUploadDialog,
-        tooltip: 'Partager un pattern',
-        child: const Icon(Icons.upload),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _authService.isAuthenticated ? _showUploadDialog : _showAuthScreen,
+        tooltip: _authService.isAuthenticated ? 'Partager un pattern' : 'Connexion requise',
+        icon: Icon(_authService.isAuthenticated ? Icons.upload : Icons.login),
+        label: Text(_authService.isAuthenticated ? 'Publier' : 'Se connecter'),
       ),
     );
   }
@@ -230,32 +288,95 @@ class _WorkshopBrowserState extends State<WorkshopBrowser> {
   }
 
   void _showUploadDialog() {
+    if (!_authService.isAuthenticated) {
+      _showAuthScreen();
+      return;
+    }
+
     final nameController = TextEditingController();
-    final authorController = TextEditingController();
+    final descriptionController = TextEditingController();
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Partager votre pattern'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
+        title: Row(
           children: [
-            TextField(
-              controller: nameController,
-              decoration: const InputDecoration(
-                labelText: 'Nom du pattern',
-                hintText: 'Ex: Glider, Oscillateur...',
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: authorController,
-              decoration: const InputDecoration(
-                labelText: 'Votre nom (optionnel)',
-                hintText: 'Ex: John Doe',
-              ),
-            ),
+            const Icon(Icons.upload),
+            const SizedBox(width: 8),
+            const Text('Publier votre pattern'),
           ],
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.person,
+                      size: 16,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Publié par: ${_authService.userName}',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.primary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Nom du pattern *',
+                  hintText: 'Ex: Glider, Oscillateur symétrique...',
+                  border: OutlineInputBorder(),
+                ),
+                textCapitalization: TextCapitalization.words,
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: descriptionController,
+                decoration: const InputDecoration(
+                  labelText: 'Description (optionnel)',
+                  hintText: 'Décrivez votre pattern...',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 3,
+                textCapitalization: TextCapitalization.sentences,
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    size: 16,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Votre pattern actuel sera partagé avec la communauté',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -265,18 +386,18 @@ class _WorkshopBrowserState extends State<WorkshopBrowser> {
           FilledButton(
             onPressed: () => _uploadPattern(
               nameController.text.trim(),
-              authorController.text.trim().isEmpty 
+              descriptionController.text.trim().isEmpty 
                 ? null 
-                : authorController.text.trim(),
+                : descriptionController.text.trim(),
             ),
-            child: const Text('Partager'),
+            child: const Text('Publier'),
           ),
         ],
       ),
     );
   }
 
-  Future<void> _uploadPattern(String name, String? author) async {
+  Future<void> _uploadPattern(String name, String? description) async {
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -287,17 +408,35 @@ class _WorkshopBrowserState extends State<WorkshopBrowser> {
       return;
     }
 
+    if (!_authService.isAuthenticated) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vous devez être connecté pour publier'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     Navigator.of(context).pop();
 
     try {
       final pattern = widget.engine.exportPattern();
-      await _patternService.uploadPattern(name, author, pattern);
+      
+      // Utiliser le nom d'utilisateur authentifié comme auteur
+      final author = _authService.userName ?? _authService.userEmail;
+      
+      await _patternService.uploadPattern(name, author, pattern, description: description);
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Pattern partagé avec succès !'),
+          SnackBar(
+            content: Text('Pattern "$name" publié avec succès !'),
             backgroundColor: Colors.green,
+            action: SnackBarAction(
+              label: 'Voir',
+              onPressed: _loadPatterns,
+            ),
           ),
         );
       }
@@ -307,7 +446,42 @@ class _WorkshopBrowserState extends State<WorkshopBrowser> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Erreur lors du partage: $e'),
+            content: Text('Erreur lors de la publication: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showAuthScreen() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => AuthScreen(
+          onAuthSuccess: () {
+            setState(() {}); // Rafraîchir l'UI après connexion
+          },
+        ),
+      ),
+    );
+  }
+
+  Future<void> _signOut() async {
+    try {
+      await _authService.signOut();
+      if (mounted) {
+        setState(() {}); // Rafraîchir l'UI après déconnexion
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Déconnecté avec succès'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur lors de la déconnexion: $e'),
             backgroundColor: Colors.red,
           ),
         );

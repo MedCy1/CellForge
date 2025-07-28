@@ -4,6 +4,7 @@ class PatternModel {
   final String id;
   final String name;
   final String? author;
+  final String? description;
   final List<List<bool>> data;
   final DateTime createdAt;
 
@@ -11,6 +12,7 @@ class PatternModel {
     required this.id,
     required this.name,
     this.author,
+    this.description,
     required this.data,
     required this.createdAt,
   });
@@ -26,17 +28,25 @@ class PatternModel {
       id: json['id'] as String,
       name: json['name'] as String,
       author: json['author'] as String?,
+      description: json['description'] as String?,
       data: grid,
       createdAt: DateTime.parse(json['created_at'] as String),
     );
   }
 
-  Map<String, dynamic> toJson() {
-    return {
+  Map<String, dynamic> toJson({String? userId}) {
+    final json = {
       'name': name,
       'author': author,
+      'description': description,
       'data': data,
     };
+    
+    if (userId != null) {
+      json['user_id'] = userId;
+    }
+    
+    return json;
   }
 }
 
@@ -75,8 +85,9 @@ class PatternService {
   Future<void> uploadPattern(
     String name,
     String? author,
-    List<List<bool>> data,
-  ) async {
+    List<List<bool>> data, {
+    String? description,
+  }) async {
     if (!isSupabaseAvailable) {
       throw Exception('Workshop hors ligne - Supabase non configuré');
     }
@@ -94,11 +105,18 @@ class PatternService {
         id: '',
         name: name,
         author: author,
+        description: description,
         data: data,
         createdAt: DateTime.now(),
       );
 
-      await _client!.from('patterns').insert(pattern.toJson());
+      // Récupérer l'ID de l'utilisateur connecté
+      final currentUser = _client!.auth.currentUser;
+      if (currentUser == null) {
+        throw Exception('Vous devez être connecté pour publier un pattern');
+      }
+
+      await _client!.from('patterns').insert(pattern.toJson(userId: currentUser.id));
     } catch (e) {
       throw Exception('Erreur lors du téléchargement du pattern: $e');
     }

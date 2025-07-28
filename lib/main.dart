@@ -7,14 +7,14 @@ import 'ui/toolbar.dart';
 import 'ui/workshop_browser.dart';
 import 'services/pattern_service.dart';
 
-const supabaseUrl = 'https://kkmrfxrgmxcqzuecvyif.supabase.co';
+const supabaseUrl = String.fromEnvironment('SUPABASE_URL', defaultValue: '');
 const supabaseKey = String.fromEnvironment('SUPABASE_KEY', defaultValue: '');
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Initialiser Supabase seulement si la clé est fournie
-  if (supabaseKey.isNotEmpty) {
+  // Initialiser Supabase seulement si l'URL et la clé sont fournies
+  if (supabaseUrl.isNotEmpty && supabaseKey.isNotEmpty) {
     await Supabase.initialize(
       url: supabaseUrl,
       anonKey: supabaseKey,
