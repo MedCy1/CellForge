@@ -39,29 +39,69 @@ class _LifeGridState extends State<LifeGrid> {
       );
     }
 
-    return InteractiveViewer(
-      boundaryMargin: const EdgeInsets.all(20),
-      minScale: 0.5,
-      maxScale: 5.0,
-      child: Container(
-        decoration: BoxDecoration(
-          border: Border.all(
-            color: Theme.of(context).colorScheme.outline,
-            width: 1,
-          ),
-        ),
-        child: AspectRatio(
-          aspectRatio: widget.engine.width / widget.engine.height,
-          child: CustomPaint(
-            painter: GridPainter(
-              grid: _grid,
-              width: widget.engine.width,
-              height: widget.engine.height,
-              colorScheme: Theme.of(context).colorScheme,
+    return Card(
+      elevation: 2,
+      margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
+      child: InteractiveViewer(
+        boundaryMargin: const EdgeInsets.all(20),
+        minScale: 0.5,
+        maxScale: 5.0,
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Theme.of(context).colorScheme.surface,
+                Theme.of(context).colorScheme.surfaceContainerLowest,
+              ],
             ),
-            child: GestureDetector(
-              onTapDown: (details) => _handleTap(details),
-              onPanUpdate: (details) => _handlePan(details),
+            border: Border.all(
+              color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
+              width: 1,
+            ),
+          ),
+          child: AspectRatio(
+            aspectRatio: widget.engine.width / widget.engine.height,
+            child: Stack(
+              children: [
+                CustomPaint(
+                  painter: GridPainter(
+                    grid: _grid,
+                    width: widget.engine.width,
+                    height: widget.engine.height,
+                    colorScheme: Theme.of(context).colorScheme,
+                  ),
+                  child: GestureDetector(
+                    onTapDown: (details) => _handleTap(details),
+                    onPanUpdate: (details) => _handlePan(details),
+                  ),
+                ),
+                
+                // Overlay de coordonnées (optionnel)
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.9),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
+                      ),
+                    ),
+                    child: Text(
+                      '${widget.engine.width} × ${widget.engine.height}',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w500,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -113,39 +153,62 @@ class GridPainter extends CustomPainter {
     final cellWidth = size.width / width;
     final cellHeight = size.height / height;
 
+    // Pinceau pour les cellules vivantes avec gradient
     final alivePaint = Paint()
-      ..color = colorScheme.primary
-      ..style = PaintingStyle.fill;
+      ..shader = LinearGradient(
+        colors: [
+          colorScheme.primary,
+          colorScheme.primary.withValues(alpha: 0.8),
+        ],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
+
+    // Pinceau pour l'ombre des cellules
+    final shadowPaint = Paint()
+      ..color = colorScheme.shadow.withValues(alpha: 0.1)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1);
 
     final backgroundPaint = Paint()
-      ..color = colorScheme.surface
-      ..style = PaintingStyle.fill;
+      ..color = Colors.transparent;
 
     final gridPaint = Paint()
-      ..color = colorScheme.outline.withValues(alpha: 0.3)
+      ..color = colorScheme.outline.withValues(alpha: 0.15)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 0.5;
+      ..strokeWidth = 0.3;
 
-    // Draw background once
+    // Draw background
     canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), backgroundPaint);
 
-    // Only draw alive cells (much fewer rectangles)
+    // Draw alive cells with modern styling
     for (int y = 0; y < height && y < grid.length; y++) {
       for (int x = 0; x < width && x < grid[y].length; x++) {
         if (grid[y][x]) {
           final rect = Rect.fromLTWH(
-            x * cellWidth,
-            y * cellHeight,
-            cellWidth,
-            cellHeight,
+            x * cellWidth + 0.5,
+            y * cellHeight + 0.5,
+            cellWidth - 1,
+            cellHeight - 1,
           );
-          canvas.drawRect(rect, alivePaint);
+          
+          // Draw shadow first (slightly offset)
+          final shadowRect = rect.translate(0.5, 0.5);
+          canvas.drawRRect(
+            RRect.fromRectAndRadius(shadowRect, const Radius.circular(1)),
+            shadowPaint,
+          );
+          
+          // Draw main cell with rounded corners
+          canvas.drawRRect(
+            RRect.fromRectAndRadius(rect, const Radius.circular(1.5)),
+            alivePaint,
+          );
         }
       }
     }
 
-    // Draw grid lines only if cells are reasonably large (performance optimization)
-    if (cellWidth > 2 && cellHeight > 2) {
+    // Draw grid lines only if cells are reasonably large
+    if (cellWidth > 3 && cellHeight > 3) {
       // Draw vertical lines
       for (int x = 0; x <= width; x++) {
         final xPos = x * cellWidth;
