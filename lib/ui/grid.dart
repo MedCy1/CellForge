@@ -70,19 +70,17 @@ class _LifeGridState extends State<LifeGrid> {
   }
 
   void _handleTap(TapDownDetails details) {
-    final RenderBox renderBox = context.findRenderObject() as RenderBox;
-    final localPosition = renderBox.globalToLocal(details.globalPosition);
-    _toggleCellAtPosition(localPosition);
+    _toggleCellAtPosition(details.localPosition);
   }
 
   void _handlePan(DragUpdateDetails details) {
-    final RenderBox renderBox = context.findRenderObject() as RenderBox;
-    final localPosition = renderBox.globalToLocal(details.globalPosition);
-    _toggleCellAtPosition(localPosition);
+    _toggleCellAtPosition(details.localPosition);
   }
 
   void _toggleCellAtPosition(Offset position) {
-    final RenderBox renderBox = context.findRenderObject() as RenderBox;
+    final RenderBox? renderBox = context.findRenderObject() as RenderBox?;
+    if (renderBox == null) return;
+    
     final size = renderBox.size;
     
     final cellWidth = size.width / widget.engine.width;
