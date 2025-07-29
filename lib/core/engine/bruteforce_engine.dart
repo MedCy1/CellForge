@@ -3,6 +3,7 @@ import 'i_life_engine.dart';
 
 class BruteforceEngine implements ILifeEngine {
   late List<List<bool>> _grid;
+  late List<List<bool>> _bufferGrid; // Buffer pour éviter les allocations
   late int _width;
   late int _height;
   bool _isRunning = false;
@@ -39,6 +40,11 @@ class BruteforceEngine implements ILifeEngine {
   
   void _initializeGrid() {
     _grid = List.generate(
+      _height, 
+      (i) => List.generate(_width, (j) => false),
+    );
+    // Initialiser le buffer avec la même taille
+    _bufferGrid = List.generate(
       _height, 
       (i) => List.generate(_width, (j) => false),
     );
@@ -132,25 +138,25 @@ class BruteforceEngine implements ILifeEngine {
   
   @override
   void nextGeneration() {
-    final newGrid = List.generate(
-      _height, 
-      (i) => List.generate(_width, (j) => false),
-    );
-    
+    // Utiliser le buffer pour éviter les allocations
     for (int y = 0; y < _height; y++) {
       for (int x = 0; x < _width; x++) {
         final neighbors = _countNeighbors(x, y);
         final isAlive = _grid[y][x];
         
         if (isAlive) {
-          newGrid[y][x] = neighbors == 2 || neighbors == 3;
+          _bufferGrid[y][x] = neighbors == 2 || neighbors == 3;
         } else {
-          newGrid[y][x] = neighbors == 3;
+          _bufferGrid[y][x] = neighbors == 3;
         }
       }
     }
     
-    _grid = newGrid;
+    // Échanger les références (plus rapide qu'une copie)
+    final temp = _grid;
+    _grid = _bufferGrid;
+    _bufferGrid = temp;
+    
     _generation++;
     _notifyGridChanged();
     _notifyGenerationChanged();
@@ -220,6 +226,12 @@ class BruteforceEngine implements ILifeEngine {
     _width = newWidth;
     _height = newHeight;
     _grid = List.generate(
+      _height, 
+      (i) => List.generate(_width, (j) => false),
+    );
+    
+    // Recréer le buffer avec les nouvelles dimensions
+    _bufferGrid = List.generate(
       _height, 
       (i) => List.generate(_width, (j) => false),
     );
