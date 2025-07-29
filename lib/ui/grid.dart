@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../core/engine/life_engine_controller.dart';
 import '../core/engine/sparse_list_engine.dart';
 import 'infinite_grid.dart';
+import 'interactive_grid_widget.dart';
 
 class LifeGrid extends StatefulWidget {
   final LifeEngineController engine;
@@ -17,6 +18,7 @@ class LifeGrid extends StatefulWidget {
 
 class _LifeGridState extends State<LifeGrid> {
   late List<List<bool>> _grid;
+  
   
   @override
   void initState() {
@@ -80,9 +82,11 @@ class _LifeGridState extends State<LifeGrid> {
                     height: widget.engine.height,
                     colorScheme: Theme.of(context).colorScheme,
                   ),
-                  child: GestureDetector(
-                    onTapDown: (details) => _handleTap(details),
-                    onPanUpdate: (details) => _handlePan(details),
+                  child: InteractiveGridWidget(
+                    engine: widget.engine,
+                    isInfiniteGrid: false,
+                    screenToGrid: _screenToGrid,
+                    child: Container(),
                   ),
                 ),
                 
@@ -116,29 +120,19 @@ class _LifeGridState extends State<LifeGrid> {
     );
   }
 
-  void _handleTap(TapDownDetails details) {
-    _toggleCellAtPosition(details.localPosition);
-  }
-
-  void _handlePan(DragUpdateDetails details) {
-    _toggleCellAtPosition(details.localPosition);
-  }
-
-  void _toggleCellAtPosition(Offset position) {
+  Offset _screenToGrid(Offset screenPos) {
     final RenderBox? renderBox = context.findRenderObject() as RenderBox?;
-    if (renderBox == null) return;
+    if (renderBox == null) return Offset.zero;
     
     final size = renderBox.size;
     
     final cellWidth = size.width / widget.engine.width;
     final cellHeight = size.height / widget.engine.height;
     
-    final x = (position.dx / cellWidth).floor();
-    final y = (position.dy / cellHeight).floor();
+    final x = (screenPos.dx / cellWidth).floor();
+    final y = (screenPos.dy / cellHeight).floor();
     
-    if (x >= 0 && x < widget.engine.width && y >= 0 && y < widget.engine.height) {
-      widget.engine.setCellState(x, y, true);
-    }
+    return Offset(x.toDouble(), y.toDouble());
   }
 }
 

@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'dart:math' as math;
 import '../core/engine/life_engine_controller.dart';
 import '../core/engine/sparse_list_engine.dart';
+import 'interactive_grid_widget.dart';
 
 class InfiniteLifeGrid extends StatefulWidget {
   final LifeEngineController engine;
@@ -28,7 +29,6 @@ class _InfiniteLifeGridState extends State<InfiniteLifeGrid> {
   
   // Gestion des gestures
   Offset? _lastPanPoint;
-  double _lastScale = 1.0;
   
   @override
   void initState() {
@@ -78,11 +78,13 @@ class _InfiniteLifeGridState extends State<InfiniteLifeGrid> {
             Positioned.fill(
               child: Listener(
                 onPointerSignal: _handlePointerSignal,
-                child: GestureDetector(
-                  onTapDown: _handleTapDown,
-                  onScaleStart: _handleScaleStart,
-                  onScaleUpdate: _handleScaleUpdate,
-                  onScaleEnd: _handleScaleEnd,
+                onPointerDown: _handlePointerDown,
+                onPointerMove: _handlePointerMove,
+                onPointerUp: _handlePointerUp,
+                child: InteractiveGridWidget(
+                  engine: widget.engine,
+                  isInfiniteGrid: true,
+                  screenToWorld: _screenToWorld,
                   child: CustomPaint(
                     painter: InfiniteGridPainter(
                       liveCells: _liveCells,
@@ -139,6 +141,7 @@ class _InfiniteLifeGridState extends State<InfiniteLifeGrid> {
     );
   }
 
+
   void _handlePointerSignal(PointerSignalEvent event) {
     if (event is PointerScrollEvent) {
       final RenderBox? renderBox = context.findRenderObject() as RenderBox?;
@@ -165,55 +168,32 @@ class _InfiniteLifeGridState extends State<InfiniteLifeGrid> {
     }
   }
 
-  void _handleTapDown(TapDownDetails details) {
-    final worldPos = _screenToWorld(details.localPosition);
-    final cellX = worldPos.dx.round();
-    final cellY = worldPos.dy.round();
-    
-    if (widget.engine.currentEngine is SparseListEngine) {
-      widget.engine.toggleCell(cellX, cellY);
+  // Navigation avec clic droit
+  bool _isPanning = false;
+  
+  void _handlePointerDown(PointerDownEvent event) {
+    if (event.buttons == 2) { // Clic droit pour navigation
+      _isPanning = true;
+      _lastPanPoint = event.localPosition;
     }
   }
-
-  void _handleScaleStart(ScaleStartDetails details) {
-    _lastPanPoint = details.localFocalPoint;
-    _lastScale = _scale;
-  }
-
-  void _handleScaleUpdate(ScaleUpdateDetails details) {
-    if (details.pointerCount == 1) {
-      // Pan uniquement
-      if (_lastPanPoint != null) {
-        final delta = details.localFocalPoint - _lastPanPoint!;
-        setState(() {
-          _viewportX -= delta.dx / (_cellSize * _scale);
-          _viewportY -= delta.dy / (_cellSize * _scale);
-        });
-        _lastPanPoint = details.localFocalPoint;
-      }
-    } else {
-      // Zoom avec pinch
-      final newScale = (_lastScale * details.scale).clamp(0.1, 10.0);
-      if (newScale != _scale) {
-        final worldPoint = _screenToWorld(details.localFocalPoint);
-        
-        setState(() {
-          _scale = newScale;
-        });
-        
-        final newScreenPoint = _worldToScreen(worldPoint);
-        final offset = details.localFocalPoint - newScreenPoint;
-        
-        setState(() {
-          _viewportX += offset.dx / (_cellSize * _scale);
-          _viewportY += offset.dy / (_cellSize * _scale);
-        });
-      }
+  
+  void _handlePointerMove(PointerMoveEvent event) {
+    if (_isPanning && event.buttons == 2 && _lastPanPoint != null) {
+      final delta = event.localPosition - _lastPanPoint!;
+      setState(() {
+        _viewportX -= delta.dx / (_cellSize * _scale);
+        _viewportY -= delta.dy / (_cellSize * _scale);
+      });
+      _lastPanPoint = event.localPosition;
     }
   }
-
-  void _handleScaleEnd(ScaleEndDetails details) {
-    _lastPanPoint = null;
+  
+  void _handlePointerUp(PointerUpEvent event) {
+    if (_isPanning) {
+      _isPanning = false;
+      _lastPanPoint = null;
+    }
   }
 
   // Convertir coordonnées écran vers monde infini
