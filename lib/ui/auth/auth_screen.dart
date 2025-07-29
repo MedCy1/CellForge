@@ -106,21 +106,39 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                 ),
                 const SizedBox(height: 32),
                 
-                // Onglets
+                // Onglets avec design amélioré
                 Container(
+                  padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(12),
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.8),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
+                    ),
                   ),
                   child: TabBar(
                     controller: _tabController,
                     indicator: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primary,
-                      borderRadius: BorderRadius.circular(10),
+                      gradient: LinearGradient(
+                        colors: [
+                          Theme.of(context).colorScheme.primary,
+                          Theme.of(context).colorScheme.secondary,
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
-                    labelColor: Theme.of(context).colorScheme.onPrimary,
+                    labelColor: Colors.white,
                     unselectedLabelColor: Theme.of(context).colorScheme.onSurface,
                     dividerColor: Colors.transparent,
+                    labelStyle: const TextStyle(fontWeight: FontWeight.w600),
+                    unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500),
                     tabs: const [
                       Tab(text: 'Connexion'),
                       Tab(text: 'Inscription'),
@@ -184,81 +202,156 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildEmailField() {
-    return TextFormField(
-      controller: _emailController,
-      keyboardType: TextInputType.emailAddress,
-      decoration: InputDecoration(
-        labelText: 'Email',
-        prefixIcon: const Icon(Icons.email_outlined),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        filled: true,
-        fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      validator: (value) {
-        if (value == null || value.isEmpty) {
-          return 'Veuillez saisir votre email';
-        }
-        if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-          return 'Veuillez saisir un email valide';
-        }
-        return null;
-      },
+      child: TextFormField(
+        controller: _emailController,
+        keyboardType: TextInputType.emailAddress,
+        decoration: InputDecoration(
+          labelText: 'Email',
+          prefixIcon: Container(
+            margin: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              Icons.email_outlined,
+              color: Theme.of(context).colorScheme.primary,
+              size: 20,
+            ),
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+          filled: true,
+          fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+        ),
+        validator: (value) {
+          if (value == null || value.isEmpty) {
+            return 'Veuillez saisir votre email';
+          }
+          if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+            return 'Veuillez saisir un email valide';
+          }
+          return null;
+        },
+      ),
     );
   }
 
   Widget _buildPasswordField() {
-    return TextFormField(
-      controller: _passwordController,
-      obscureText: _obscurePassword,
-      decoration: InputDecoration(
-        labelText: 'Mot de passe',
-        prefixIcon: const Icon(Icons.lock_outlined),
-        suffixIcon: IconButton(
-          icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off),
-          onPressed: () {
-            setState(() {
-              _obscurePassword = !_obscurePassword;
-            });
-          },
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        filled: true,
-        fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      validator: (value) {
-        if (value == null || value.isEmpty) {
-          return 'Veuillez saisir votre mot de passe';
-        }
-        if (_tabController.index == 1 && value.length < 6) {
-          return 'Le mot de passe doit contenir au moins 6 caractères';
-        }
-        return null;
-      },
+      child: TextFormField(
+        controller: _passwordController,
+        obscureText: _obscurePassword,
+        decoration: InputDecoration(
+          labelText: 'Mot de passe',
+          prefixIcon: Container(
+            margin: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.secondary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              Icons.lock_outlined,
+              color: Theme.of(context).colorScheme.secondary,
+              size: 20,
+            ),
+          ),
+          suffixIcon: IconButton(
+            icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off),
+            onPressed: () {
+              setState(() {
+                _obscurePassword = !_obscurePassword;
+              });
+            },
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+          filled: true,
+          fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+        ),
+        validator: (value) {
+          if (value == null || value.isEmpty) {
+            return 'Veuillez saisir votre mot de passe';
+          }
+          if (_tabController.index == 1 && value.length < 6) {
+            return 'Le mot de passe doit contenir au moins 6 caractères';
+          }
+          return null;
+        },
+      ),
     );
   }
 
   Widget _buildDisplayNameField() {
-    return TextFormField(
-      controller: _displayNameController,
-      decoration: InputDecoration(
-        labelText: 'Nom d\'affichage',
-        prefixIcon: const Icon(Icons.person_outlined),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        filled: true,
-        fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      validator: (value) {
-        if (value == null || value.isEmpty) {
-          return 'Veuillez saisir votre nom d\'affichage';
-        }
-        return null;
-      },
+      child: TextFormField(
+        controller: _displayNameController,
+        decoration: InputDecoration(
+          labelText: 'Nom d\'affichage',
+          prefixIcon: Container(
+            margin: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              Icons.person_outlined,
+              color: Theme.of(context).colorScheme.tertiary,
+              size: 20,
+            ),
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+          filled: true,
+          fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+        ),
+        validator: (value) {
+          if (value == null || value.isEmpty) {
+            return 'Veuillez saisir votre nom d\'affichage';
+          }
+          return null;
+        },
+      ),
     );
   }
 

@@ -262,33 +262,298 @@ class _WorkshopBrowserState extends State<WorkshopBrowser> {
   void _showPatternDetails(PatternModel pattern) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(pattern.name),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          width: 480,
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.8,
+          ),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Theme.of(context).colorScheme.surface,
+                Theme.of(context).colorScheme.surfaceContainerLowest,
+              ],
+            ),
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.2),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header moderne
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                      Theme.of(context).colorScheme.secondary.withValues(alpha: 0.05),
+                    ],
+                  ),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Theme.of(context).colorScheme.primary,
+                            Theme.of(context).colorScheme.secondary,
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: const Icon(
+                        Icons.grid_on,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            pattern.name,
+                            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                          if (pattern.author != null)
+                            Text(
+                              'Par ${pattern.author}',
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close),
+                      style: IconButton.styleFrom(
+                        backgroundColor: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerHighest
+                            .withValues(alpha: 0.8),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Contenu principal
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Informations générales
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHigh
+                              .withValues(alpha: 0.5),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.info_outline,
+                                  color: Theme.of(context).colorScheme.primary,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Informations',
+                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                    color: Theme.of(context).colorScheme.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _buildInfoItem(
+                                    'Création',
+                                    _formatDate(pattern.createdAt),
+                                    Icons.calendar_today,
+                                    context,
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: _buildInfoItem(
+                                    'Dimensions',
+                                    '${pattern.bounds.width} × ${pattern.bounds.height}',
+                                    Icons.aspect_ratio,
+                                    context,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            _buildInfoItem(
+                              'Cellules vivantes',
+                              '${pattern.aliveCellCount}',
+                              Icons.apps,
+                              context,
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // Actions rapides
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .primaryContainer
+                              .withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.lightbulb_outline,
+                              color: Theme.of(context).colorScheme.primary,
+                              size: 18,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Cliquez sur "Charger" pour importer ce pattern dans votre grille',
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: Theme.of(context).colorScheme.primary,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Actions avec design moderne
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .surfaceContainerHighest
+                      .withValues(alpha: 0.3),
+                  borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text('Fermer'),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      flex: 2,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          _loadPattern(pattern);
+                        },
+                        icon: const Icon(Icons.download, size: 18),
+                        label: const Text('Charger'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Theme.of(context).colorScheme.primary,
+                          foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoItem(
+    String label,
+    String value,
+    IconData icon,
+    BuildContext context,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
           children: [
-            if (pattern.author != null) Text('Auteur: ${pattern.author}'),
-            Text('Créé le: ${_formatDate(pattern.createdAt)}'),
-            const SizedBox(height: 16),
-            Text('Taille: ${pattern.bounds.width}×${pattern.bounds.height}'),
-            Text('Cellules vivantes: ${pattern.aliveCellCount}'),
+            Icon(icon, size: 16, color: Theme.of(context).colorScheme.primary),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Fermer'),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w600,
           ),
-          FilledButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              _loadPattern(pattern);
-            },
-            child: const Text('Charger'),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
