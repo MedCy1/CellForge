@@ -54,17 +54,29 @@ class SparseListEngine implements ILifeEngine {
   
   @override
   bool getCellState(int x, int y) {
+    // En mode grille limitée, retourner false pour les cellules hors limites
+    if (!_isInfinite && (x < 0 || x >= _width || y < 0 || y >= _height)) {
+      return false;
+    }
     return _grid.getCell(Offset(x.toDouble(), y.toDouble()));
   }
   
   @override
   void setCellState(int x, int y, bool isAlive) {
+    // En mode grille limitée, ignorer les cellules hors limites
+    if (!_isInfinite && (x < 0 || x >= _width || y < 0 || y >= _height)) {
+      return;
+    }
     _grid.setCell(Offset(x.toDouble(), y.toDouble()), isAlive);
     _notifyGridChanged();
   }
   
   @override
   void toggleCell(int x, int y) {
+    // En mode grille limitée, ignorer les cellules hors limites
+    if (!_isInfinite && (x < 0 || x >= _width || y < 0 || y >= _height)) {
+      return;
+    }
     _grid.toggleCell(Offset(x.toDouble(), y.toDouble()));
     _notifyGridChanged();
   }
@@ -82,10 +94,22 @@ class SparseListEngine implements ILifeEngine {
     clearGrid();
     final random = Random();
     
-    for (int y = -25; y < 25; y++) {
-      for (int x = -25; x < 25; x++) {
-        if (random.nextDouble() < probability) {
-          _grid.setCell(Offset(x.toDouble(), y.toDouble()), true);
+    if (_isInfinite) {
+      // Mode infini : randomiser dans une zone centrale
+      for (int y = -25; y < 25; y++) {
+        for (int x = -25; x < 25; x++) {
+          if (random.nextDouble() < probability) {
+            _grid.setCell(Offset(x.toDouble(), y.toDouble()), true);
+          }
+        }
+      }
+    } else {
+      // Mode grille limitée : randomiser dans les limites
+      for (int y = 0; y < _height; y++) {
+        for (int x = 0; x < _width; x++) {
+          if (random.nextDouble() < probability) {
+            _grid.setCell(Offset(x.toDouble(), y.toDouble()), true);
+          }
         }
       }
     }
@@ -140,6 +164,10 @@ class SparseListEngine implements ILifeEngine {
           if (dx == 0 && dy == 0) continue;
           
           final neighbor = Offset(cell.dx + dx, cell.dy + dy);
+          
+          // En mode grille limitée, ignorer les voisins hors limites
+          if (!_isInfinite && !_isInBounds(neighbor)) continue;
+          
           neighborCounts[neighbor] = (neighborCounts[neighbor] ?? 0) + 1;
         }
       }
@@ -151,6 +179,9 @@ class SparseListEngine implements ILifeEngine {
       final pos = entry.key;
       final neighbors = entry.value;
       final isAlive = _grid.getCell(pos);
+      
+      // En mode grille limitée, ne créer des cellules que dans les limites
+      if (!_isInfinite && !_isInBounds(pos)) continue;
       
       if (isAlive) {
         if (neighbors == 2 || neighbors == 3) {
@@ -173,6 +204,12 @@ class SparseListEngine implements ILifeEngine {
     _notifyGenerationChanged();
   }
   
+  bool _isInBounds(Offset pos) {
+    final x = pos.dx.toInt();
+    final y = pos.dy.toInt();
+    return x >= 0 && x < _width && y >= 0 && y < _height;
+  }
+  
   @override
   void loadPattern(List<List<bool>> pattern, {int? startX, int? startY}) {
     if (pattern.isEmpty) return;
@@ -188,7 +225,13 @@ class SparseListEngine implements ILifeEngine {
     for (int y = 0; y < patternHeight; y++) {
       for (int x = 0; x < patternWidth; x++) {
         if (pattern[y][x]) {
-          _grid.setCell(Offset((offsetX + x).toDouble(), (offsetY + y).toDouble()), true);
+          final cellX = offsetX + x;
+          final cellY = offsetY + y;
+          
+          // En mode grille limitée, ne placer que les cellules dans les limites
+          if (_isInfinite || (cellX >= 0 && cellX < _width && cellY >= 0 && cellY < _height)) {
+            _grid.setCell(Offset(cellX.toDouble(), cellY.toDouble()), true);
+          }
         }
       }
     }
