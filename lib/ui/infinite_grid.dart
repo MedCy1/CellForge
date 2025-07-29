@@ -41,7 +41,7 @@ class _InfiniteLifeGridState extends State<InfiniteLifeGrid> {
       if (mounted && widget.engine.currentEngine is SparseListEngine) {
         final sparseEngine = widget.engine.currentEngine as SparseListEngine;
         setState(() {
-          _liveCells = sparseEngine.getLiveCells();
+          _liveCells = sparseEngine.getLiveCells().map((intPoint) => intPoint.toOffset()).toSet();
         });
       }
     });
@@ -49,7 +49,7 @@ class _InfiniteLifeGridState extends State<InfiniteLifeGrid> {
     // Initialiser avec les cellules actuelles
     if (widget.engine.currentEngine is SparseListEngine) {
       final sparseEngine = widget.engine.currentEngine as SparseListEngine;
-      _liveCells = sparseEngine.getLiveCells();
+      _liveCells = sparseEngine.getLiveCells().map((intPoint) => intPoint.toOffset()).toSet();
     }
   }
   

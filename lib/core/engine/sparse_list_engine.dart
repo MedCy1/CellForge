@@ -1,11 +1,11 @@
 import 'dart:async';
-import 'dart:ui';
 import 'dart:math';
 import 'i_life_engine.dart';
-import '../infinite_grid.dart';
+import '../data_structures/int_point.dart';
 
+/// High-performance sparse engine using optimized data structures
 class SparseListEngine implements ILifeEngine {
-  final InfiniteGrid _grid = InfiniteGrid();
+  final OptimizedSparseGrid _grid = OptimizedSparseGrid();
   bool _isRunning = false;
   Timer? _timer;
   Duration _generationInterval = const Duration(milliseconds: 200);
@@ -54,30 +54,27 @@ class SparseListEngine implements ILifeEngine {
   
   @override
   bool getCellState(int x, int y) {
-    // En mode grille limitée, retourner false pour les cellules hors limites
     if (!_isInfinite && (x < 0 || x >= _width || y < 0 || y >= _height)) {
       return false;
     }
-    return _grid.getCell(Offset(x.toDouble(), y.toDouble()));
+    return _grid.getCell(IntPoint(x, y));
   }
   
   @override
   void setCellState(int x, int y, bool isAlive) {
-    // En mode grille limitée, ignorer les cellules hors limites
     if (!_isInfinite && (x < 0 || x >= _width || y < 0 || y >= _height)) {
       return;
     }
-    _grid.setCell(Offset(x.toDouble(), y.toDouble()), isAlive);
+    _grid.setCell(IntPoint(x, y), isAlive);
     _notifyGridChanged();
   }
   
   @override
   void toggleCell(int x, int y) {
-    // En mode grille limitée, ignorer les cellules hors limites
     if (!_isInfinite && (x < 0 || x >= _width || y < 0 || y >= _height)) {
       return;
     }
-    _grid.toggleCell(Offset(x.toDouble(), y.toDouble()));
+    _grid.toggleCell(IntPoint(x, y));
     _notifyGridChanged();
   }
   
@@ -99,7 +96,7 @@ class SparseListEngine implements ILifeEngine {
       for (int y = -25; y < 25; y++) {
         for (int x = -25; x < 25; x++) {
           if (random.nextDouble() < probability) {
-            _grid.setCell(Offset(x.toDouble(), y.toDouble()), true);
+            _grid.setCell(IntPoint(x, y), true);
           }
         }
       }
@@ -108,7 +105,7 @@ class SparseListEngine implements ILifeEngine {
       for (int y = 0; y < _height; y++) {
         for (int x = 0; x < _width; x++) {
           if (random.nextDouble() < probability) {
-            _grid.setCell(Offset(x.toDouble(), y.toDouble()), true);
+            _grid.setCell(IntPoint(x, y), true);
           }
         }
       }
@@ -153,49 +150,29 @@ class SparseListEngine implements ILifeEngine {
   
   @override
   void nextGeneration() {
-    final liveCells = _grid.getLiveCells();
-    if (liveCells.isEmpty) return;
+    if (_grid.population == 0) return;
     
-    final neighborCounts = <Offset, int>{};
+    // Optimisation ultra-rapide : une seule passe sur tous les candidats
+    final candidates = _grid.getCandidateCells();
+    final newGrid = OptimizedSparseGrid();
     
-    for (final cell in liveCells) {
-      for (int dy = -1; dy <= 1; dy++) {
-        for (int dx = -1; dx <= 1; dx++) {
-          if (dx == 0 && dy == 0) continue;
-          
-          final neighbor = Offset(cell.dx + dx, cell.dy + dy);
-          
-          // En mode grille limitée, ignorer les voisins hors limites
-          if (!_isInfinite && !_isInBounds(neighbor)) continue;
-          
-          neighborCounts[neighbor] = (neighborCounts[neighbor] ?? 0) + 1;
-        }
-      }
-    }
-    
-    final newGrid = InfiniteGrid();
-    
-    for (final entry in neighborCounts.entries) {
-      final pos = entry.key;
-      final neighbors = entry.value;
-      final isAlive = _grid.getCell(pos);
-      
-      // En mode grille limitée, ne créer des cellules que dans les limites
+    for (final pos in candidates) {
+      // Mode grille limitée : ignorer les positions hors limites
       if (!_isInfinite && !_isInBounds(pos)) continue;
       
-      if (isAlive) {
-        if (neighbors == 2 || neighbors == 3) {
-          newGrid.setCell(pos, true);
-        }
-      } else {
-        if (neighbors == 3) {
-          newGrid.setCell(pos, true);
-        }
+      final neighbors = _grid.countLiveNeighbors(pos);
+      final isAlive = _grid.getCell(pos);
+      
+      // Règles de Conway optimisées
+      if ((isAlive && (neighbors == 2 || neighbors == 3)) ||
+          (!isAlive && neighbors == 3)) {
+        newGrid.setCell(pos, true);
       }
     }
     
+    // Remplacement ultra-rapide de la grille
     _grid.clear();
-    for (final cell in newGrid.getLiveCells()) {
+    for (final cell in newGrid.liveCells) {
       _grid.setCell(cell, true);
     }
     
@@ -204,10 +181,8 @@ class SparseListEngine implements ILifeEngine {
     _notifyGenerationChanged();
   }
   
-  bool _isInBounds(Offset pos) {
-    final x = pos.dx.toInt();
-    final y = pos.dy.toInt();
-    return x >= 0 && x < _width && y >= 0 && y < _height;
+  bool _isInBounds(IntPoint pos) {
+    return pos.x >= 0 && pos.x < _width && pos.y >= 0 && pos.y < _height;
   }
   
   @override
@@ -228,9 +203,8 @@ class SparseListEngine implements ILifeEngine {
           final cellX = offsetX + x;
           final cellY = offsetY + y;
           
-          // En mode grille limitée, ne placer que les cellules dans les limites
           if (_isInfinite || (cellX >= 0 && cellX < _width && cellY >= 0 && cellY < _height)) {
-            _grid.setCell(Offset(cellX.toDouble(), cellY.toDouble()), true);
+            _grid.setCell(IntPoint(cellX, cellY), true);
           }
         }
       }
@@ -242,50 +216,22 @@ class SparseListEngine implements ILifeEngine {
   @override
   List<List<bool>> exportPattern() {
     if (_isInfinite) {
-      // Mode infini : exporter selon les bounds des cellules vivantes
       final bounds = _grid.getBounds();
-      if (bounds == Rect.zero) {
+      if (bounds == null) {
         return [[]];
       }
       
-      final minX = bounds.left.toInt();
-      final maxX = bounds.right.toInt();
-      final minY = bounds.top.toInt();
-      final maxY = bounds.bottom.toInt();
+      final width = bounds.maxX - bounds.minX + 1;
+      final height = bounds.maxY - bounds.minY + 1;
       
-      final width = maxX - minX + 1;
-      final height = maxY - minY + 1;
-      
-      final result = List.generate(
-        height,
-        (y) => List.generate(width, (x) => false),
+      return _grid.toGrid(
+        width: width,
+        height: height,
+        offsetX: bounds.minX,
+        offsetY: bounds.minY,
       );
-      
-      for (final cell in _grid.getLiveCells()) {
-        final x = cell.dx.toInt() - minX;
-        final y = cell.dy.toInt() - minY;
-        if (x >= 0 && x < width && y >= 0 && y < height) {
-          result[y][x] = true;
-        }
-      }
-      
-      return result;
     } else {
-      // Mode grille fixe : exporter selon les dimensions définies
-      final result = List.generate(
-        _height,
-        (y) => List.generate(_width, (x) => false),
-      );
-      
-      for (final cell in _grid.getLiveCells()) {
-        final x = cell.dx.toInt();
-        final y = cell.dy.toInt();
-        if (x >= 0 && x < _width && y >= 0 && y < _height) {
-          result[y][x] = true;
-        }
-      }
-      
-      return result;
+      return _grid.toGrid(width: _width, height: _height);
     }
   }
   
@@ -300,12 +246,11 @@ class SparseListEngine implements ILifeEngine {
     _height = newHeight;
     _isInfinite = false;
     
-    // Supprimer les cellules qui sont maintenant hors limites
-    final cellsToRemove = <Offset>[];
-    for (final cell in _grid.getLiveCells()) {
-      final x = cell.dx.toInt();
-      final y = cell.dy.toInt();
-      if (x < 0 || x >= _width || y < 0 || y >= _height) {
+    // Supprimer les cellules hors limites de manière optimisée
+    final cellsToRemove = <IntPoint>[];
+    
+    for (final cell in _grid.liveCells) {
+      if (cell.x < 0 || cell.x >= _width || cell.y < 0 || cell.y >= _height) {
         cellsToRemove.add(cell);
       }
     }
@@ -317,20 +262,25 @@ class SparseListEngine implements ILifeEngine {
     _notifyGridChanged();
   }
   
-  Set<Offset> getLiveCells() {
-    return _grid.getLiveCells();
+  Set<IntPoint> getLiveCells() {
+    return _grid.liveCells;
   }
   
   void setInfiniteMode(bool infinite) {
     _isInfinite = infinite;
     if (infinite) {
-      _width = 1000; // Valeurs par défaut pour le mode infini
+      _width = 1000;
       _height = 1000;
     }
     _notifyGridChanged();
   }
   
   bool get isInfinite => _isInfinite;
+  
+  /// Obtenir les statistiques de performance
+  Map<String, dynamic> getPerformanceStats() {
+    return _grid.getStats();
+  }
   
   @override
   void dispose() {
