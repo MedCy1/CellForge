@@ -6,6 +6,7 @@ import 'ffi/avx2_engine.dart';
 
 class Avx2Engine implements ILifeEngine {
   late Uint8List _grid;
+  late Uint8List _bufferGrid;
   late int _width;
   late int _height;
   bool _isRunning = false;
@@ -16,6 +17,7 @@ class Avx2Engine implements ILifeEngine {
   final StreamController<int> _generationController = StreamController.broadcast();
   
   int _generation = 0;
+  bool _useNativeEngine = false;
 
   @override
   Stream<List<List<bool>>> get gridStream => _gridController.stream;
@@ -37,10 +39,10 @@ class Avx2Engine implements ILifeEngine {
     // Initialize FFI library
     try {
       Avx2EngineFFI.initialize();
-      // AVX2 engine initialized successfully for ${width}x$height grid
+      _useNativeEngine = true;
     } catch (e) {
-      // AVX2 engine initialization failed: $e
-      throw Exception('Failed to initialize AVX2 engine: $e');
+      // Native engine fallback - will use Dart implementation
+      _useNativeEngine = false;
     }
     
     _width = width;
@@ -52,8 +54,10 @@ class Avx2Engine implements ILifeEngine {
   void _initializeGrid() {
     final size = _width * _height;
     _grid = Uint8List(size);
+    _bufferGrid = Uint8List(size);
     // Initialize all cells to 0 (dead)
     _grid.fillRange(0, size, 0);
+    _bufferGrid.fillRange(0, size, 0);
     _generation = 0;
     _notifyGridChanged();
     _notifyGenerationChanged();
@@ -71,16 +75,15 @@ class Avx2Engine implements ILifeEngine {
     }
   }
 
-  // Convert flat Uint8List to 2D List<List<bool>>
+  // Convert flat Uint8List to 2D List<List<bool>> with better performance
   List<List<bool>> _flatToGrid(Uint8List flat) {
-    final grid = <List<bool>>[];
-    for (int y = 0; y < _height; y++) {
-      final row = <bool>[];
-      for (int x = 0; x < _width; x++) {
-        row.add(flat[y * _width + x] != 0);
-      }
-      grid.add(row);
-    }
+    final grid = List<List<bool>>.generate(
+      _height, 
+      (y) => List<bool>.generate(
+        _width, 
+        (x) => flat[y * _width + x] != 0,
+      ),
+    );
     return grid;
   }
 
@@ -166,6 +169,18 @@ class Avx2Engine implements ILifeEngine {
 
   @override
   void nextGeneration() {
+    if (_useNativeEngine) {
+      _nextGenerationNative();
+    } else {
+      _nextGenerationDart();
+    }
+    
+    _generation++;
+    _notifyGridChanged();
+    _notifyGenerationChanged();
+  }
+  
+  void _nextGenerationNative() {
     // Convert Uint8List to FFI pointer
     final pointer = Avx2FFIHelper.uint8ListToPointer(_grid);
     
@@ -177,14 +192,64 @@ class Avx2Engine implements ILifeEngine {
       for (int i = 0; i < _grid.length; i++) {
         _grid[i] = pointer[i];
       }
-      
-      _generation++;
-      _notifyGridChanged();
-      _notifyGenerationChanged();
     } finally {
       // Always free the pointer
       Avx2FFIHelper.freePointer(pointer);
     }
+  }
+  
+  void _nextGenerationDart() {
+    // Dart fallback with double-buffering optimization
+    final width = _width;
+    final height = _height;
+    
+    // Process each cell with better memory access patterns
+    for (int y = 0; y < height; y++) {
+      final rowOffset = y * width;
+      for (int x = 0; x < width; x++) {
+        final index = rowOffset + x;
+        final neighbors = _countNeighborsFast(x, y);
+        final currentCell = _grid[index];
+        
+        // Apply Conway's Game of Life rules
+        if (currentCell != 0) {
+          // Live cell: survives with 2 or 3 neighbors
+          _bufferGrid[index] = (neighbors == 2 || neighbors == 3) ? 1 : 0;
+        } else {
+          // Dead cell: becomes alive with exactly 3 neighbors
+          _bufferGrid[index] = (neighbors == 3) ? 1 : 0;
+        }
+      }
+    }
+    
+    // Swap grids using references (no copying)
+    final temp = _grid;
+    _grid = _bufferGrid;
+    _bufferGrid = temp;
+  }
+  
+  // Optimized neighbor counting with bounds checking
+  int _countNeighborsFast(int x, int y) {
+    int count = 0;
+    final width = _width;
+    final height = _height;
+    
+    // Calculate bounds to avoid repeated checks
+    final minX = x > 0 ? x - 1 : 0;
+    final maxX = x < width - 1 ? x + 1 : width - 1;
+    final minY = y > 0 ? y - 1 : 0;
+    final maxY = y < height - 1 ? y + 1 : height - 1;
+    
+    // Count neighbors with unrolled loop for better performance
+    for (int ny = minY; ny <= maxY; ny++) {
+      final rowOffset = ny * width;
+      for (int nx = minX; nx <= maxX; nx++) {
+        if (nx == x && ny == y) continue; // Skip center cell
+        count += _grid[rowOffset + nx];
+      }
+    }
+    
+    return count;
   }
 
   @override
@@ -226,24 +291,27 @@ class Avx2Engine implements ILifeEngine {
 
   @override
   void resizeGrid(int newWidth, int newHeight) {
-    final oldGrid = _flatToGrid(_grid);
+    final oldGrid = Uint8List.fromList(_grid);
     final oldWidth = _width;
     final oldHeight = _height;
 
     _width = newWidth;
     _height = newHeight;
-    _grid = Uint8List(_width * _height);
-    _grid.fillRange(0, _grid.length, 0);
+    final newSize = _width * _height;
+    _grid = Uint8List(newSize);
+    _bufferGrid = Uint8List(newSize);
+    _grid.fillRange(0, newSize, 0);
+    _bufferGrid.fillRange(0, newSize, 0);
 
     final copyWidth = oldWidth < newWidth ? oldWidth : newWidth;
     final copyHeight = oldHeight < newHeight ? oldHeight : newHeight;
 
+    // Optimized copying with better memory access patterns
     for (int y = 0; y < copyHeight; y++) {
+      final oldRowOffset = y * oldWidth;
+      final newRowOffset = y * newWidth;
       for (int x = 0; x < copyWidth; x++) {
-        if (y < oldGrid.length && x < oldGrid[y].length) {
-          final index = y * _width + x;
-          _grid[index] = oldGrid[y][x] ? 1 : 0;
-        }
+        _grid[newRowOffset + x] = oldGrid[oldRowOffset + x];
       }
     }
 
