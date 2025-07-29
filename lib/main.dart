@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'core/engine/life_engine_controller.dart';
-import 'core/engine/bruteforce_engine.dart';
+import 'features/game/presentation/game_controller.dart';
+import 'features/game/presentation/widgets/game_app_bar.dart';
+import 'features/game/presentation/widgets/built_in_patterns_panel.dart';
 import 'ui/grid.dart';
 import 'ui/toolbar.dart';
 import 'ui/workshop_browser.dart';
-import 'services/pattern_service.dart';
 
 const supabaseUrl = String.fromEnvironment('SUPABASE_URL', defaultValue: '');
 const supabaseKey = String.fromEnvironment('SUPABASE_KEY', defaultValue: '');
@@ -58,125 +58,37 @@ class GameOfLifeScreen extends StatefulWidget {
 }
 
 class _GameOfLifeScreenState extends State<GameOfLifeScreen> {
-  late LifeEngineController _engine;
-  bool _showBuiltInPatterns = false;
+  late GameController _gameController;
 
   @override
   void initState() {
     super.initState();
-    _engine = LifeEngineController(
-      engine: BruteforceEngine(width: 80, height: 50),
-      // Auto-switching is enabled by default
-      onEngineSwitch: (message) {
-        // Show engine switches as snackbars for user feedback
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(message),
-              duration: const Duration(seconds: 2),
-              backgroundColor: Colors.blue,
-            ),
-          );
-        }
-      },
-    );
+    _gameController = GameController();
+    
+    // Écouter les changements du contrôleur pour les notifications
+    _gameController.addListener(_onGameControllerChanged);
+  }
+
+  void _onGameControllerChanged() {
+    // Gérer les notifications comme les changements de moteur
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   @override
   void dispose() {
-    _engine.dispose();
+    _gameController.removeListener(_onGameControllerChanged);
+    _gameController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Theme.of(context).colorScheme.primary,
-                    Theme.of(context).colorScheme.secondary,
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Text(
-                '🧬',
-                style: TextStyle(fontSize: 20),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Text(
-              'CellForge',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-            ),
-          ],
-        ),
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        elevation: 0,
-        surfaceTintColor: Colors.transparent,
-        shadowColor: Colors.transparent,
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Container(
-            height: 1,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Colors.transparent,
-                  Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
-                  Colors.transparent,
-                ],
-              ),
-            ),
-          ),
-        ),
-        actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 8),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  onPressed: _showBuiltInPatternsDialog,
-                  icon: const Icon(Icons.apps, size: 20),
-                  tooltip: 'Patterns intégrés',
-                  style: IconButton.styleFrom(
-                    backgroundColor: Colors.transparent,
-                    foregroundColor: Theme.of(context).colorScheme.onPrimaryContainer,
-                  ),
-                ),
-                Container(
-                  width: 1,
-                  height: 20,
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
-                ),
-                IconButton(
-                  onPressed: _openWorkshop,
-                  icon: const Icon(Icons.cloud, size: 20),
-                  tooltip: 'Workshop en ligne',
-                  style: IconButton.styleFrom(
-                    backgroundColor: Colors.transparent,
-                    foregroundColor: Theme.of(context).colorScheme.onPrimaryContainer,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+      appBar: GameAppBar(
+        onPatternsPressed: _gameController.toggleBuiltInPatterns,
+        onWorkshopPressed: _openWorkshop,
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
@@ -210,9 +122,15 @@ class _GameOfLifeScreenState extends State<GameOfLifeScreen> {
                     ),
                     child: Column(
                       children: [
-                        LifeToolbar(engine: _engine),
-                        if (_showBuiltInPatterns) 
-                          Expanded(child: _buildBuiltInPatterns())
+                        LifeToolbar(engine: _gameController.engine),
+                        if (_gameController.showBuiltInPatterns) 
+                          Expanded(
+                            child: BuiltInPatternsPanel(
+                              patterns: _gameController.getBuiltInPatterns(),
+                              onPatternSelected: _loadPattern,
+                              onClose: _gameController.hideBuiltInPatterns,
+                            ),
+                          )
                         else
                           const SizedBox(height: 16),
                       ],
@@ -223,7 +141,7 @@ class _GameOfLifeScreenState extends State<GameOfLifeScreen> {
                   Expanded(
                     child: Padding(
                       padding: const EdgeInsets.all(16.0),
-                      child: LifeGrid(engine: _engine),
+                      child: LifeGrid(engine: _gameController.engine),
                     ),
                   ),
                 ],
@@ -243,12 +161,12 @@ class _GameOfLifeScreenState extends State<GameOfLifeScreen> {
               ),
               child: Column(
                 children: [
-                  LifeToolbar(engine: _engine),
+                  LifeToolbar(engine: _gameController.engine),
                   const SizedBox(height: 8),
                   Expanded(
                     child: Padding(
                       padding: const EdgeInsets.all(16.0),
-                      child: LifeGrid(engine: _engine),
+                      child: LifeGrid(engine: _gameController.engine),
                     ),
                   ),
                 ],
@@ -260,124 +178,8 @@ class _GameOfLifeScreenState extends State<GameOfLifeScreen> {
     );
   }
 
-  Widget _buildBuiltInPatterns() {
-    final patterns = PatternService.getBuiltInPatterns();
-    
-    return Card(
-      margin: const EdgeInsets.all(8.0),
-      elevation: 2,
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16.0),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    Icons.apps,
-                    size: 18,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  'Patterns classiques',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                ),
-                const Spacer(),
-                IconButton(
-                  onPressed: () {
-                    setState(() {
-                      _showBuiltInPatterns = false;
-                    });
-                  },
-                  icon: const Icon(Icons.close, size: 20),
-                  style: IconButton.styleFrom(
-                    backgroundColor: Theme.of(context).colorScheme.surface.withValues(alpha: 0.8),
-                    foregroundColor: Theme.of(context).colorScheme.onSurface,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(8),
-              itemCount: patterns.length,
-              itemBuilder: (context, index) {
-                final pattern = patterns[index];
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 4),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
-                    color: Theme.of(context).colorScheme.surfaceContainerHigh.withValues(alpha: 0.3),
-                  ),
-                  child: ListTile(
-                    dense: true,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                    leading: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.secondaryContainer,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Icon(
-                        Icons.grid_on,
-                        size: 16,
-                        color: Theme.of(context).colorScheme.onSecondaryContainer,
-                      ),
-                    ),
-                    title: Text(
-                      pattern.name,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    subtitle: Text(
-                      'Par ${pattern.author}',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    onTap: () => _loadPattern(pattern),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showBuiltInPatternsDialog() {
-    setState(() {
-      _showBuiltInPatterns = !_showBuiltInPatterns;
-    });
-  }
-
-  void _loadPattern(PatternModel pattern) {
-    // Convertir vers une grille avec les dimensions du moteur
-    final grid = pattern.toGrid(
-      width: _engine.width,
-      height: _engine.height,
-    );
-    _engine.loadPattern(grid);
+  void _loadPattern(pattern) {
+    _gameController.loadPattern(pattern);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Pattern "${pattern.name}" chargé'),
@@ -389,7 +191,7 @@ class _GameOfLifeScreenState extends State<GameOfLifeScreen> {
   void _openWorkshop() {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => WorkshopBrowser(engine: _engine),
+        builder: (context) => WorkshopBrowser(engine: _gameController.engine),
       ),
     );
   }
