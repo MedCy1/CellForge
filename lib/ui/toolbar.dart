@@ -358,18 +358,24 @@ class _LifeToolbarState extends State<LifeToolbar> {
                   decoration: BoxDecoration(
                     color: (widget.engine.currentEngineType == EngineType.avx2
                         ? Colors.blue
-                        : (widget.engine.isAvx2EngineAvailable ? Colors.grey : Colors.orange))
+                        : widget.engine.currentEngineType == EngineType.sparse
+                            ? Colors.green
+                            : (widget.engine.isAvx2EngineAvailable ? Colors.grey : Colors.orange))
                         .withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Icon(
                     widget.engine.currentEngineType == EngineType.avx2
                         ? Icons.speed
-                        : Icons.calculate,
+                        : widget.engine.currentEngineType == EngineType.sparse
+                            ? Icons.grid_3x3
+                            : Icons.calculate,
                     size: 14,
                     color: widget.engine.currentEngineType == EngineType.avx2
                         ? Colors.blue
-                        : (widget.engine.isAvx2EngineAvailable ? Colors.grey : Colors.orange),
+                        : widget.engine.currentEngineType == EngineType.sparse
+                            ? Colors.green
+                            : (widget.engine.isAvx2EngineAvailable ? Colors.grey : Colors.orange),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -386,11 +392,15 @@ class _LifeToolbarState extends State<LifeToolbar> {
                     Text(
                       widget.engine.currentEngineType == EngineType.avx2
                           ? 'High-Perf'
-                          : (widget.engine.isAvx2EngineAvailable ? 'Standard' : 'Standard*'),
+                          : widget.engine.currentEngineType == EngineType.sparse
+                              ? 'Sparse'
+                              : (widget.engine.isAvx2EngineAvailable ? 'Standard' : 'Standard*'),
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: widget.engine.currentEngineType == EngineType.avx2
                             ? Colors.blue
-                            : (widget.engine.isAvx2EngineAvailable ? Colors.grey : Colors.orange),
+                            : widget.engine.currentEngineType == EngineType.sparse
+                                ? Colors.green
+                                : (widget.engine.isAvx2EngineAvailable ? Colors.grey : Colors.orange),
                         fontWeight: FontWeight.w500,
                         fontSize: 11,
                       ),

@@ -75,6 +75,35 @@ class _GameOfLifeScreenState extends State<GameOfLifeScreen> {
     // Gérer les notifications comme les changements de moteur
     if (mounted) {
       setState(() {});
+      
+      // Afficher les notifications de changement d'engine
+      final engineMessage = _gameController.lastEngineMessage;
+      if (engineMessage != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(
+                  Icons.swap_horiz,
+                  color: Colors.white,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    engineMessage,
+                    style: const TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            duration: AppConstants.snackBarDuration,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        _gameController.clearEngineMessage();
+      }
     }
   }
 

@@ -8,6 +8,7 @@ import '../../../services/pattern_service.dart';
 class GameController extends ChangeNotifier {
   late LifeEngineController _engine;
   bool _showBuiltInPatterns = false;
+  String? _lastEngineMessage;
 
   GameController() {
     _initializeEngine();
@@ -16,6 +17,7 @@ class GameController extends ChangeNotifier {
   // Getters
   LifeEngineController get engine => _engine;
   bool get showBuiltInPatterns => _showBuiltInPatterns;
+  String? get lastEngineMessage => _lastEngineMessage;
 
   void _initializeEngine() {
     _engine = LifeEngineController(
@@ -24,7 +26,8 @@ class GameController extends ChangeNotifier {
         height: AppConstants.defaultGridHeight,
       ),
       onEngineSwitch: (message) {
-        // Notifier les listeners des changements de moteur
+        // Stocker le message et notifier les listeners
+        _lastEngineMessage = message;
         notifyListeners();
       },
     );
@@ -52,6 +55,11 @@ class GameController extends ChangeNotifier {
 
   List<PatternModel> getBuiltInPatterns() {
     return PatternService.getBuiltInPatterns();
+  }
+
+  /// Consommer le dernier message d'engine (marquer comme lu)
+  void clearEngineMessage() {
+    _lastEngineMessage = null;
   }
 
   @override
