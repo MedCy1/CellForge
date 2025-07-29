@@ -35,8 +35,8 @@ class _LifeGridState extends State<LifeGrid> {
 
   @override
   Widget build(BuildContext context) {
-    // Utiliser InfiniteLifeGrid pour le SparseListEngine (grille infinie)
-    if (widget.engine.currentEngine is SparseListEngine) {
+    // Utiliser InfiniteLifeGrid seulement si le mode grille infinie est activé
+    if (widget.engine.currentEngine is SparseListEngine && widget.engine.isInfiniteGrid) {
       return InfiniteLifeGrid(engine: widget.engine);
     }
 

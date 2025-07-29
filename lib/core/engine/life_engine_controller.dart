@@ -189,13 +189,18 @@ class LifeEngineController {
       // Switch to sparse engine for infinite grid
       if (currentType != EngineType.sparse) {
         try {
-          final sparseEngine = SparseListEngine();
+          final sparseEngine = SparseListEngine(infinite: true);
           switchEngine(sparseEngine);
           final message = 'Switched to sparse engine for infinite grid';
           _onEngineSwitch?.call(message);
         } catch (e) {
           final message = 'Sparse engine not available, keeping current engine';
           _onEngineSwitch?.call(message);
+        }
+      } else {
+        // S'assurer que le mode infini est activé sur l'engine existant
+        if (_engine is SparseListEngine) {
+          (_engine as SparseListEngine).setInfiniteMode(true);
         }
       }
     } else {
@@ -226,6 +231,11 @@ class LifeEngineController {
           final message = 'Engine switch failed, keeping current engine';
           _onEngineSwitch?.call(message);
         }
+      } else if (currentType == EngineType.sparse) {
+        // S'assurer que le SparseListEngine est en mode grille fixe
+        if (_engine is SparseListEngine) {
+          (_engine as SparseListEngine).setInfiniteMode(false);
+        }
       }
     }
     // If we're already using the correct engine for the grid size, do nothing (no notification)
@@ -243,7 +253,7 @@ class LifeEngineController {
           newEngine = Avx2Engine(width: width, height: height);
           break;
         case EngineType.sparse:
-          newEngine = SparseListEngine();
+          newEngine = SparseListEngine(width: width, height: height);
           break;
         case EngineType.bruteforce:
           newEngine = BruteforceEngine(width: width, height: height);

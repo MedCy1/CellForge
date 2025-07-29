@@ -10,6 +10,9 @@ class SparseListEngine implements ILifeEngine {
   Timer? _timer;
   Duration _generationInterval = const Duration(milliseconds: 200);
   int _generation = 0;
+  int _width = 1000;
+  int _height = 1000;
+  bool _isInfinite = false;
   
   final StreamController<List<List<bool>>> _gridController = StreamController.broadcast();
   final StreamController<int> _generationController = StreamController.broadcast();
@@ -22,15 +25,18 @@ class SparseListEngine implements ILifeEngine {
   @override
   bool get isRunning => _isRunning;
   @override
-  int get width => 1000;
+  int get width => _width;
   @override
-  int get height => 1000;
+  int get height => _height;
   @override
   int get generation => _generation;
   @override
   Duration get generationInterval => _generationInterval;
   
-  SparseListEngine() {
+  SparseListEngine({int? width, int? height, bool infinite = false}) {
+    if (width != null) _width = width;
+    if (height != null) _height = height;
+    _isInfinite = infinite;
     Future.microtask(() => _notifyGridChanged());
   }
   
@@ -192,33 +198,52 @@ class SparseListEngine implements ILifeEngine {
   
   @override
   List<List<bool>> exportPattern() {
-    final bounds = _grid.getBounds();
-    if (bounds == Rect.zero) {
-      return [[]];
-    }
-    
-    final minX = bounds.left.toInt();
-    final maxX = bounds.right.toInt();
-    final minY = bounds.top.toInt();
-    final maxY = bounds.bottom.toInt();
-    
-    final width = maxX - minX + 1;
-    final height = maxY - minY + 1;
-    
-    final result = List.generate(
-      height,
-      (y) => List.generate(width, (x) => false),
-    );
-    
-    for (final cell in _grid.getLiveCells()) {
-      final x = cell.dx.toInt() - minX;
-      final y = cell.dy.toInt() - minY;
-      if (x >= 0 && x < width && y >= 0 && y < height) {
-        result[y][x] = true;
+    if (_isInfinite) {
+      // Mode infini : exporter selon les bounds des cellules vivantes
+      final bounds = _grid.getBounds();
+      if (bounds == Rect.zero) {
+        return [[]];
       }
+      
+      final minX = bounds.left.toInt();
+      final maxX = bounds.right.toInt();
+      final minY = bounds.top.toInt();
+      final maxY = bounds.bottom.toInt();
+      
+      final width = maxX - minX + 1;
+      final height = maxY - minY + 1;
+      
+      final result = List.generate(
+        height,
+        (y) => List.generate(width, (x) => false),
+      );
+      
+      for (final cell in _grid.getLiveCells()) {
+        final x = cell.dx.toInt() - minX;
+        final y = cell.dy.toInt() - minY;
+        if (x >= 0 && x < width && y >= 0 && y < height) {
+          result[y][x] = true;
+        }
+      }
+      
+      return result;
+    } else {
+      // Mode grille fixe : exporter selon les dimensions définies
+      final result = List.generate(
+        _height,
+        (y) => List.generate(_width, (x) => false),
+      );
+      
+      for (final cell in _grid.getLiveCells()) {
+        final x = cell.dx.toInt();
+        final y = cell.dy.toInt();
+        if (x >= 0 && x < _width && y >= 0 && y < _height) {
+          result[y][x] = true;
+        }
+      }
+      
+      return result;
     }
-    
-    return result;
   }
   
   @override
@@ -228,11 +253,41 @@ class SparseListEngine implements ILifeEngine {
   
   @override
   void resizeGrid(int newWidth, int newHeight) {
+    _width = newWidth;
+    _height = newHeight;
+    _isInfinite = false;
+    
+    // Supprimer les cellules qui sont maintenant hors limites
+    final cellsToRemove = <Offset>[];
+    for (final cell in _grid.getLiveCells()) {
+      final x = cell.dx.toInt();
+      final y = cell.dy.toInt();
+      if (x < 0 || x >= _width || y < 0 || y >= _height) {
+        cellsToRemove.add(cell);
+      }
+    }
+    
+    for (final cell in cellsToRemove) {
+      _grid.setCell(cell, false);
+    }
+    
+    _notifyGridChanged();
   }
   
   Set<Offset> getLiveCells() {
     return _grid.getLiveCells();
   }
+  
+  void setInfiniteMode(bool infinite) {
+    _isInfinite = infinite;
+    if (infinite) {
+      _width = 1000; // Valeurs par défaut pour le mode infini
+      _height = 1000;
+    }
+    _notifyGridChanged();
+  }
+  
+  bool get isInfinite => _isInfinite;
   
   @override
   void dispose() {
