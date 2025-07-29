@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/constants/app_constants.dart';
 import '../../../core/engine/life_engine_controller.dart';
 import '../../../core/engine/bruteforce_engine.dart';
 import '../../../services/pattern_service.dart';
@@ -18,7 +19,10 @@ class GameController extends ChangeNotifier {
 
   void _initializeEngine() {
     _engine = LifeEngineController(
-      engine: BruteforceEngine(width: 80, height: 50),
+      engine: BruteforceEngine(
+        width: AppConstants.defaultGridWidth, 
+        height: AppConstants.defaultGridHeight,
+      ),
       onEngineSwitch: (message) {
         // Notifier les listeners des changements de moteur
         notifyListeners();

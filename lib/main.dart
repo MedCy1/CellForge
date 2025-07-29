@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'core/constants/app_constants.dart';
+import 'core/constants/app_colors.dart';
 import 'features/game/presentation/game_controller.dart';
 import 'features/game/presentation/widgets/game_app_bar.dart';
 import 'features/game/presentation/widgets/built_in_patterns_panel.dart';
@@ -30,18 +32,18 @@ class CellForgeApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'CellForge',
+      title: AppConstants.appName,
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.blue,
+          seedColor: AppColors.primarySeed,
           brightness: Brightness.light,
         ),
       ),
       darkTheme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.blue,
+          seedColor: AppColors.primarySeed,
           brightness: Brightness.dark,
         ),
       ),
@@ -92,25 +94,18 @@ class _GameOfLifeScreenState extends State<GameOfLifeScreen> {
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
-          final isWide = constraints.maxWidth > 800;
+          final isWide = constraints.maxWidth > AppConstants.wideScreenBreakpoint;
           
           if (isWide) {
             return Container(
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Theme.of(context).colorScheme.surface,
-                    Theme.of(context).colorScheme.surfaceContainerLowest,
-                  ],
-                ),
+                gradient: AppColors.backgroundGradient(Theme.of(context).colorScheme),
               ),
               child: Row(
                 children: [
                   // Panneau latéral avec design amélioré
                   Container(
-                    width: 320,
+                    width: AppConstants.sidebarWidth,
                     decoration: BoxDecoration(
                       color: Theme.of(context).colorScheme.surfaceContainerHigh.withValues(alpha: 0.3),
                       border: Border(
@@ -140,7 +135,7 @@ class _GameOfLifeScreenState extends State<GameOfLifeScreen> {
                   // Zone principale de la grille
                   Expanded(
                     child: Padding(
-                      padding: const EdgeInsets.all(16.0),
+                      padding: AppConstants.defaultPadding,
                       child: LifeGrid(engine: _gameController.engine),
                     ),
                   ),
@@ -150,14 +145,7 @@ class _GameOfLifeScreenState extends State<GameOfLifeScreen> {
           } else {
             return Container(
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Theme.of(context).colorScheme.surface,
-                    Theme.of(context).colorScheme.surfaceContainerLowest,
-                  ],
-                ),
+                gradient: AppColors.backgroundGradient(Theme.of(context).colorScheme),
               ),
               child: Column(
                 children: [
@@ -165,7 +153,7 @@ class _GameOfLifeScreenState extends State<GameOfLifeScreen> {
                   const SizedBox(height: 8),
                   Expanded(
                     child: Padding(
-                      padding: const EdgeInsets.all(16.0),
+                      padding: AppConstants.defaultPadding,
                       child: LifeGrid(engine: _gameController.engine),
                     ),
                   ),
@@ -183,7 +171,7 @@ class _GameOfLifeScreenState extends State<GameOfLifeScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Pattern "${pattern.name}" chargé'),
-        duration: const Duration(seconds: 2),
+        duration: AppConstants.snackBarDuration,
       ),
     );
   }
