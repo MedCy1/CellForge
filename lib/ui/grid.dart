@@ -125,12 +125,16 @@ class _LifeGridState extends State<LifeGrid> {
     if (renderBox == null) return Offset.zero;
     
     final size = renderBox.size;
-    
     final cellWidth = size.width / widget.engine.width;
     final cellHeight = size.height / widget.engine.height;
     
-    final x = (screenPos.dx / cellWidth).floor();
-    final y = (screenPos.dy / cellHeight).floor();
+    // Compenser l'offset de +0.5 utilisé dans le GridPainter
+    // Les cellules sont dessinées à partir de (x * cellWidth + 0.5, y * cellHeight + 0.5)
+    final adjustedX = screenPos.dx + 0.5;
+    final adjustedY = screenPos.dy + 0.5;
+    
+    final x = (adjustedX / cellWidth).floor().clamp(0, widget.engine.width - 1);
+    final y = (adjustedY / cellHeight).floor().clamp(0, widget.engine.height - 1);
     
     return Offset(x.toDouble(), y.toDouble());
   }

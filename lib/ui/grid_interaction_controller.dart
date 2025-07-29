@@ -96,7 +96,7 @@ class GridInteractionController {
   Offset? _positionToCell(Offset screenPos) {
     if (isInfiniteGrid && screenToWorld != null) {
       final worldPos = screenToWorld!(screenPos);
-      return Offset(worldPos.dx.roundToDouble(), worldPos.dy.roundToDouble());
+      return Offset(worldPos.dx.floorToDouble(), worldPos.dy.floorToDouble());
     } else if (!isInfiniteGrid && screenToGrid != null) {
       return screenToGrid!(screenPos);
     }
