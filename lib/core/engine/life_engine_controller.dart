@@ -2,16 +2,19 @@ import 'dart:async';
 import 'i_life_engine.dart';
 import 'bruteforce_engine.dart';
 import 'avx2_engine.dart';
+import 'sparse_list_engine.dart';
 
 enum EngineType {
   bruteforce,
   avx2,
+  sparse,
 }
 
 class LifeEngineController {
   ILifeEngine _engine;
   bool _autoSwitchEnabled = true; // Enable auto-switching by default
   int _autoSwitchThreshold = 2500; // Switch to AVX2 for grids larger than 50x50
+  bool _isInfiniteGrid = false; // Track if infinite grid mode is enabled
   void Function(String message)? _onEngineSwitch;
   
   // Controller's own streams that never change
@@ -65,6 +68,15 @@ class LifeEngineController {
       _checkAndAutoSwitch();
     }
   }
+  
+  void setInfiniteGrid(bool infinite) {
+    _isInfiniteGrid = infinite;
+    if (_autoSwitchEnabled) {
+      _checkAndAutoSwitch();
+    }
+  }
+  
+  bool get isInfiniteGrid => _isInfiniteGrid;
   void dispose() {
     _disconnectFromEngine();
     _engine.dispose();
@@ -117,6 +129,8 @@ class LifeEngineController {
   EngineType get currentEngineType {
     if (_engine is Avx2Engine) {
       return EngineType.avx2;
+    } else if (_engine is SparseListEngine) {
+      return EngineType.sparse;
     } else if (_engine is BruteforceEngine) {
       return EngineType.bruteforce;
     } else {
@@ -129,6 +143,8 @@ class LifeEngineController {
     switch (currentEngineType) {
       case EngineType.avx2:
         return 'AVX2 Native Engine';
+      case EngineType.sparse:
+        return 'Sparse List Engine';
       case EngineType.bruteforce:
         return 'Brute Force Engine';
     }
@@ -167,32 +183,49 @@ class LifeEngineController {
   void _checkAndAutoSwitch() {
     if (!_autoSwitchEnabled) return;
     
-    final totalCells = width * height;
     final currentType = currentEngineType;
     
-    if (totalCells > _autoSwitchThreshold && currentType == EngineType.bruteforce) {
-      // Switch to AVX2 for large grids
-      try {
-        final avx2Engine = Avx2Engine(width: width, height: height);
-        switchEngine(avx2Engine);
-        final message = 'Switched to high-performance engine for $width×$height grid';
-        _onEngineSwitch?.call(message);
-      } catch (e) {
-        // AVX2 engine creation failed, inform user and stay with current engine
-        final message = 'High-performance engine not available, using standard engine';
-        _onEngineSwitch?.call(message);
+    if (_isInfiniteGrid) {
+      // Switch to sparse engine for infinite grid
+      if (currentType != EngineType.sparse) {
+        try {
+          final sparseEngine = SparseListEngine();
+          switchEngine(sparseEngine);
+          final message = 'Switched to sparse engine for infinite grid';
+          _onEngineSwitch?.call(message);
+        } catch (e) {
+          final message = 'Sparse engine not available, keeping current engine';
+          _onEngineSwitch?.call(message);
+        }
       }
-    } else if (totalCells <= _autoSwitchThreshold && currentType == EngineType.avx2) {
-      // Switch back to bruteforce for small grids
-      try {
-        final bruteforceEngine = BruteforceEngine(width: width, height: height);
-        switchEngine(bruteforceEngine);
-        final message = 'Switched to standard engine for $width×$height grid';
-        _onEngineSwitch?.call(message);
-      } catch (e) {
-        // This should rarely fail, but handle gracefully
-        final message = 'Engine switch failed, keeping current engine';
-        _onEngineSwitch?.call(message);
+    } else {
+      // Regular grid logic
+      final totalCells = width * height;
+      
+      if (totalCells > _autoSwitchThreshold && currentType == EngineType.bruteforce) {
+        // Switch to AVX2 for large grids
+        try {
+          final avx2Engine = Avx2Engine(width: width, height: height);
+          switchEngine(avx2Engine);
+          final message = 'Switched to high-performance engine for $width×$height grid';
+          _onEngineSwitch?.call(message);
+        } catch (e) {
+          // AVX2 engine creation failed, inform user and stay with current engine
+          final message = 'High-performance engine not available, using standard engine';
+          _onEngineSwitch?.call(message);
+        }
+      } else if (totalCells <= _autoSwitchThreshold && (currentType == EngineType.avx2 || currentType == EngineType.sparse)) {
+        // Switch back to bruteforce for small grids
+        try {
+          final bruteforceEngine = BruteforceEngine(width: width, height: height);
+          switchEngine(bruteforceEngine);
+          final message = 'Switched to standard engine for $width×$height grid';
+          _onEngineSwitch?.call(message);
+        } catch (e) {
+          // This should rarely fail, but handle gracefully
+          final message = 'Engine switch failed, keeping current engine';
+          _onEngineSwitch?.call(message);
+        }
       }
     }
     // If we're already using the correct engine for the grid size, do nothing (no notification)
@@ -209,17 +242,42 @@ class LifeEngineController {
         case EngineType.avx2:
           newEngine = Avx2Engine(width: width, height: height);
           break;
+        case EngineType.sparse:
+          newEngine = SparseListEngine();
+          break;
         case EngineType.bruteforce:
           newEngine = BruteforceEngine(width: width, height: height);
           break;
       }
       
       switchEngine(newEngine);
-      final engineName = engineType == EngineType.avx2 ? 'high-performance' : 'standard';
+      String engineName;
+      switch (engineType) {
+        case EngineType.avx2:
+          engineName = 'high-performance';
+          break;
+        case EngineType.sparse:
+          engineName = 'sparse';
+          break;
+        case EngineType.bruteforce:
+          engineName = 'standard';
+          break;
+      }
       final message = 'Switched to $engineName engine';
       _onEngineSwitch?.call(message);
     } catch (e) {
-      final engineName = engineType == EngineType.avx2 ? 'high-performance' : 'standard';
+      String engineName;
+      switch (engineType) {
+        case EngineType.avx2:
+          engineName = 'high-performance';
+          break;
+        case EngineType.sparse:
+          engineName = 'sparse';
+          break;
+        case EngineType.bruteforce:
+          engineName = 'standard';
+          break;
+      }
       final message = '$engineName engine not available';
       _onEngineSwitch?.call(message);
     }

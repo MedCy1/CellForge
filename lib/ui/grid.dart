@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/engine/life_engine_controller.dart';
+import '../core/engine/sparse_list_engine.dart';
+import 'infinite_grid.dart';
 
 class LifeGrid extends StatefulWidget {
   final LifeEngineController engine;
@@ -33,6 +35,11 @@ class _LifeGridState extends State<LifeGrid> {
 
   @override
   Widget build(BuildContext context) {
+    // Utiliser InfiniteLifeGrid pour le SparseListEngine (grille infinie)
+    if (widget.engine.currentEngine is SparseListEngine) {
+      return InfiniteLifeGrid(engine: widget.engine);
+    }
+
     if (_grid.isEmpty) {
       return const Center(
         child: CircularProgressIndicator(),

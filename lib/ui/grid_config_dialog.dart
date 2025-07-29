@@ -18,6 +18,7 @@ class _GridConfigDialogState extends State<GridConfigDialog> {
   late TextEditingController _heightController;
   late MemoryUsage _currentEstimate;
   bool _showAdvanced = false;
+  bool _isInfiniteGrid = false;
 
   @override
   void initState() {
@@ -28,6 +29,7 @@ class _GridConfigDialogState extends State<GridConfigDialog> {
     _heightController = TextEditingController(
       text: widget.engine.height.toString(),
     );
+    _isInfiniteGrid = widget.engine.isInfiniteGrid;
     _updateEstimate();
   }
 
@@ -39,11 +41,17 @@ class _GridConfigDialogState extends State<GridConfigDialog> {
   }
 
   void _updateEstimate() {
-    final width = int.tryParse(_widthController.text) ?? widget.engine.width;
-    final height = int.tryParse(_heightController.text) ?? widget.engine.height;
-    setState(() {
-      _currentEstimate = MemoryEstimator.calculateMemoryUsage(width, height);
-    });
+    if (_isInfiniteGrid) {
+      setState(() {
+        _currentEstimate = _InfiniteGridMemoryUsage();
+      });
+    } else {
+      final width = int.tryParse(_widthController.text) ?? widget.engine.width;
+      final height = int.tryParse(_heightController.text) ?? widget.engine.height;
+      setState(() {
+        _currentEstimate = MemoryEstimator.calculateMemoryUsage(width, height);
+      });
+    }
   }
 
   Color _getWarningColor(WarningLevel level) {
@@ -268,7 +276,9 @@ class _GridConfigDialogState extends State<GridConfigDialog> {
                             widget.engine.currentEngineName,
                             widget.engine.currentEngineType == EngineType.avx2
                                 ? Icons.speed
-                                : Icons.calculate,
+                                : widget.engine.currentEngineType == EngineType.sparse
+                                    ? Icons.all_out
+                                    : Icons.calculate,
                             context,
                           ),
                         ],
@@ -285,8 +295,74 @@ class _GridConfigDialogState extends State<GridConfigDialog> {
                     ),
                     const SizedBox(height: 16),
 
+                    // Toggle pour grille infinie
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .primaryContainer
+                            .withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .primary
+                              .withValues(alpha: 0.2),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              Icons.all_out,
+                              color: Theme.of(context).colorScheme.primary,
+                              size: 18,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Grille infinie',
+                                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                    color: Theme.of(context).colorScheme.primary,
+                                  ),
+                                ),
+                                Text(
+                                  'Espace illimité avec moteur optimisé sparse',
+                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Switch(
+                            value: _isInfiniteGrid,
+                            onChanged: (value) {
+                              setState(() {
+                                _isInfiniteGrid = value;
+                              });
+                              _updateEstimate();
+                            },
+                            activeColor: Theme.of(context).colorScheme.primary,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
                     // Champs de saisie avec design moderne
-                    Row(
+                    if (!_isInfiniteGrid) Row(
                       children: [
                         Expanded(
                           child: Container(
@@ -347,17 +423,17 @@ class _GridConfigDialogState extends State<GridConfigDialog> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 20),
+                    if (!_isInfiniteGrid) const SizedBox(height: 20),
 
                     // Présets avec design moderne
-                    Text(
+                    if (!_isInfiniteGrid) Text(
                       'Tailles recommandées',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    Wrap(
+                    if (!_isInfiniteGrid) const SizedBox(height: 12),
+                    if (!_isInfiniteGrid) Wrap(
                       spacing: 8,
                       runSpacing: 8,
                       children: MemoryEstimator.getRecommendedSizes().map((
@@ -667,28 +743,43 @@ class _GridConfigDialogState extends State<GridConfigDialog> {
                           _currentEstimate.warningLevel == WarningLevel.danger
                           ? null
                           : () {
-                              final width = int.tryParse(_widthController.text);
-                              final height = int.tryParse(
-                                _heightController.text,
-                              );
-
-                              if (width != null &&
-                                  height != null &&
-                                  width > 0 &&
-                                  height > 0) {
-                                widget.engine.resizeGrid(width, height);
+                              if (_isInfiniteGrid) {
+                                widget.engine.setInfiniteGrid(true);
                                 Navigator.of(context).pop();
 
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: Text(
-                                      'Grille redimensionnée : $width × $height',
+                                    content: const Text(
+                                      'Mode grille infinie activé',
                                     ),
-                                    backgroundColor: _getWarningColor(
-                                      _currentEstimate.warningLevel,
-                                    ),
+                                    backgroundColor: Theme.of(context).colorScheme.primary,
                                   ),
                                 );
+                              } else {
+                                final width = int.tryParse(_widthController.text);
+                                final height = int.tryParse(
+                                  _heightController.text,
+                                );
+
+                                if (width != null &&
+                                    height != null &&
+                                    width > 0 &&
+                                    height > 0) {
+                                  widget.engine.setInfiniteGrid(false);
+                                  widget.engine.resizeGrid(width, height);
+                                  Navigator.of(context).pop();
+
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Grille redimensionnée : $width × $height',
+                                      ),
+                                      backgroundColor: _getWarningColor(
+                                        _currentEstimate.warningLevel,
+                                      ),
+                                    ),
+                                  );
+                                }
                               }
                             },
                       style: ElevatedButton.styleFrom(
@@ -817,4 +908,25 @@ class _GridConfigDialogState extends State<GridConfigDialog> {
       ),
     );
   }
+}
+
+class _InfiniteGridMemoryUsage extends MemoryUsage {
+  _InfiniteGridMemoryUsage() : super(
+    width: 0,
+    height: 0,
+    totalCells: 0,
+    coreGridBytes: 1024,
+    uiGridBytes: 512,
+    streamBytes: 256,
+    renderingBytes: 2048,
+    nativeBufferBytes: 0,
+    rawTotalBytes: 3840,
+    totalBytesWithSafety: 5760,
+  );
+  
+  @override
+  WarningLevel get warningLevel => WarningLevel.safe;
+  
+  @override
+  String get performanceEstimate => 'Grille infinie - utilisation mémoire dynamique basée sur les cellules actives';
 }
