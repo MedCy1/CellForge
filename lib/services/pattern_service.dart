@@ -1,5 +1,8 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/optimized_pattern.dart';
+import '../core/error/result.dart';
+import '../core/error/app_error.dart';
+import '../core/error/error_handler.dart';
 
 class PatternModel {
   final String id;
@@ -78,12 +81,17 @@ class PatternService {
 
   bool get isSupabaseAvailable => _client != null;
 
-  Future<List<PatternModel>> getPatterns() async {
+  Future<Result<List<PatternModel>>> getPatterns() async {
     if (!isSupabaseAvailable) {
-      throw Exception('Workshop hors ligne - Supabase non configuré');
+      return Result.failure(
+        const NetworkError(
+          message: 'Workshop hors ligne - Supabase non configuré',
+          code: 'SUPABASE_NOT_CONFIGURED',
+        ),
+      );
     }
 
-    try {
+    return ErrorHandler.safeCall(() async {
       final response = await _client!
           .from('patterns')
           .select()
@@ -94,9 +102,7 @@ class PatternService {
           .toList();
 
       return patterns;
-    } catch (e) {
-      throw Exception('Erreur lors de la récupération des patterns: $e');
-    }
+    });
   }
 
   Future<void> uploadPattern(

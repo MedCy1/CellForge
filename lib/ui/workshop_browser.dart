@@ -35,21 +35,21 @@ class _WorkshopBrowserState extends State<WorkshopBrowser> {
       _error = null;
     });
 
-    try {
-      final patterns = await _patternService.getPatterns();
-      if (mounted) {
-        setState(() {
-          _patterns = patterns;
-          _isLoading = false;
+    final result = await _patternService.getPatterns();
+    if (mounted) {
+      result
+        .onSuccess((patterns) {
+          setState(() {
+            _patterns = patterns;
+            _isLoading = false;
+          });
+        })
+        .onFailure((error) {
+          setState(() {
+            _error = error.message;
+            _isLoading = false;
+          });
         });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _error = e.toString();
-          _isLoading = false;
-        });
-      }
     }
   }
 
