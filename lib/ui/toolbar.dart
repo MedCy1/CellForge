@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../core/engine/life_engine_controller.dart';
 import '../utils/memory_estimator.dart';
@@ -19,17 +20,24 @@ class _LifeToolbarState extends State<LifeToolbar> {
   bool _isRunning = false;
   int _generation = 0;
   double _speed = 200;
+  late StreamSubscription<int> _generationSubscription;
 
   @override
   void initState() {
     super.initState();
-    widget.engine.generationStream.listen((generation) {
+    _generationSubscription = widget.engine.generationStream.listen((generation) {
       if (mounted) {
         setState(() {
           _generation = generation;
         });
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _generationSubscription.cancel();
+    super.dispose();
   }
 
   @override

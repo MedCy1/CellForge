@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'dart:ui' as ui;
@@ -20,6 +21,7 @@ class InfiniteLifeGrid extends StatefulWidget {
 
 class _InfiniteLifeGridState extends State<InfiniteLifeGrid> {
   Set<Offset> _liveCells = {};
+  late StreamSubscription<List<List<bool>>> _gridSubscription;
   
   // Système de viewport infini
   double _viewportX = 0.0; // Position X du viewport dans la grille infinie
@@ -35,7 +37,7 @@ class _InfiniteLifeGridState extends State<InfiniteLifeGrid> {
     super.initState();
     
     // Écouter les changements de la grille
-    widget.engine.gridStream.listen((grid) {
+    _gridSubscription = widget.engine.gridStream.listen((grid) {
       if (mounted && widget.engine.currentEngine is SparseListEngine) {
         final sparseEngine = widget.engine.currentEngine as SparseListEngine;
         setState(() {
@@ -49,6 +51,12 @@ class _InfiniteLifeGridState extends State<InfiniteLifeGrid> {
       final sparseEngine = widget.engine.currentEngine as SparseListEngine;
       _liveCells = sparseEngine.getLiveCells();
     }
+  }
+  
+  @override
+  void dispose() {
+    _gridSubscription.cancel();
+    super.dispose();
   }
 
   @override

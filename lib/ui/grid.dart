@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../core/engine/life_engine_controller.dart';
 import '../core/engine/sparse_list_engine.dart';
@@ -18,7 +19,7 @@ class LifeGrid extends StatefulWidget {
 
 class _LifeGridState extends State<LifeGrid> {
   late List<List<bool>> _grid;
-  
+  late StreamSubscription<List<List<bool>>> _gridSubscription;
   
   @override
   void initState() {
@@ -26,13 +27,19 @@ class _LifeGridState extends State<LifeGrid> {
     // Initialiser avec la grille actuelle du moteur
     _grid = widget.engine.getCurrentGrid();
     
-    widget.engine.gridStream.listen((grid) {
+    _gridSubscription = widget.engine.gridStream.listen((grid) {
       if (mounted) {
         setState(() {
           _grid = grid;
         });
       }
     });
+  }
+  
+  @override
+  void dispose() {
+    _gridSubscription.cancel();
+    super.dispose();
   }
 
   @override
