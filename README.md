@@ -125,7 +125,7 @@ Ce projet est open-source, toute contribution est la bienvenue !
 
 ## 🪪 Licence
 
-MIT
+Apache License 2.0
 
 ---
 
